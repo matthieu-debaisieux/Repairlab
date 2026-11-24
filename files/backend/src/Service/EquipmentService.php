@@ -18,9 +18,40 @@ final class EquipmentService
     {
     }
 
-    public function list(): array
+    /**
+     * @param array<string, mixed> $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function list(array $filters = []): array
     {
-        return $this->repository->all();
+        $q = '';
+        if (isset($filters['q']) && is_string($filters['q'])) {
+            $q = trim($filters['q']);
+        }
+
+        $category = '';
+        if (isset($filters['category']) && is_string($filters['category'])) {
+            $category = trim($filters['category']);
+        } elseif (isset($filters['category']) && is_int($filters['category']) && $filters['category'] > 0) {
+            $category = (string) $filters['category'];
+        }
+
+        $status = '';
+        if (isset($filters['status']) && is_string($filters['status'])) {
+            $trimmedStatus = strtoupper(trim($filters['status']));
+            if ($trimmedStatus !== '') {
+                if (!in_array($trimmedStatus, self::ALLOWED_STATUSES, true)) {
+                    throw new InvalidArgumentException('Le statut fourni est invalide.');
+                }
+                $status = $trimmedStatus;
+            }
+        }
+
+        return $this->repository->all([
+            'q' => $q,
+            'category' => $category,
+            'status' => $status,
+        ]);
     }
 
     public function get(int $id): ?array
@@ -30,7 +61,6 @@ final class EquipmentService
 
     public function create(array $input): array
     {
-        // Un client peut envoyer name[] : vérifier le type avant trim().
         $rawName = $input['name'] ?? null;
         if (!is_string($rawName)) {
             throw new InvalidArgumentException('Le nom doit être une chaîne.');

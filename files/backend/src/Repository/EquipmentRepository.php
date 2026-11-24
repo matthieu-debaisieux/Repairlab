@@ -12,14 +12,54 @@ final class EquipmentRepository
     {
     }
 
-    public function all(): array
+    /**
+     * @param array{q?: string, category?: string, status?: string} $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function all(array $filters = []): array
     {
-        return $this->database->select(
+        $where = [
+            'E.visible_public' => 1,
+            'ORDER' => ['E.id_equipement' => 'DESC'],
+        ];
+
+        $q = $filters['q'] ?? '';
+        if (is_string($q) && $q !== '') {
+            $where['OR'] = [
+                'E.nom[~]' => $q,
+                'E.localisation[~]' => $q,
+            ];
+        }
+
+        $category = $filters['category'] ?? '';
+        if (is_string($category) && $category !== '') {
+            if (ctype_digit($category)) {
+                $where['E.id_categorie'] = (int) $category;
+            } else {
+                $where['C.libelle'] = $category;
+            }
+        }
+
+        $status = $filters['status'] ?? '';
+        if (is_string($status) && $status !== '') {
+            $where['E.statut_technique'] = $status;
+        }
+
+        $rows = $this->database->select(
             'EQUIPEMENT (E)',
             ['[>]CATEGORIE_EQUIPEMENT (C)' => ['id_categorie' => 'id_categorie']],
-            ['E.id_equipement (id)', 'E.nom (name)', 'E.statut_technique (status)', 'E.localisation', 'E.controle_requis', 'C.libelle (category)'],
-            ['E.visible_public' => 1, 'ORDER' => ['E.id_equipement' => 'DESC']]
+            [
+                'E.id_equipement (id)',
+                'E.nom (name)',
+                'E.statut_technique (status)',
+                'E.localisation',
+                'E.controle_requis',
+                'C.libelle (category)',
+            ],
+            $where
         );
+
+        return is_array($rows) ? $rows : [];
     }
 
     public function find(int $id): ?array
@@ -27,7 +67,14 @@ final class EquipmentRepository
         $row = $this->database->get(
             'EQUIPEMENT (E)',
             ['[>]CATEGORIE_EQUIPEMENT (C)' => ['id_categorie' => 'id_categorie']],
-            ['E.id_equipement (id)', 'E.nom (name)', 'E.statut_technique (status)', 'C.libelle (category)'],
+            [
+                'E.id_equipement (id)',
+                'E.nom (name)',
+                'E.statut_technique (status)',
+                'E.localisation',
+                'E.controle_requis',
+                'C.libelle (category)',
+            ],
             ['E.id_equipement' => $id, 'E.visible_public' => 1]
         );
 
@@ -39,14 +86,15 @@ final class EquipmentRepository
         $this->database->insert('EQUIPEMENT', [
             'nom' => $name,
             'statut_technique' => $status,
+            'visible_public' => 1,
         ]);
 
         $id = (int) $this->database->id();
 
         return $this->find($id) ?? [
-            'id_equipement' => $id,
-            'nom' => $name,
-            'statut_technique' => $status,
+            'id' => $id,
+            'name' => $name,
+            'status' => $status,
         ];
     }
 }

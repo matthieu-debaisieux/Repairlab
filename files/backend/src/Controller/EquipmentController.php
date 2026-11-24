@@ -25,11 +25,27 @@ final class EquipmentController
         ServerRequestInterface $request,
         ResponseInterface $response
     ): ResponseInterface {
+        $filters = $request->getQueryParams();
+        $error = null;
+        $equipment = [];
+
+        try {
+            $equipment = $this->service->list(is_array($filters) ? $filters : []);
+        } catch (InvalidArgumentException $exception) {
+            $error = $exception->getMessage();
+            $equipment = $this->service->list([]);
+        }
+
         return $this->renderer->render($response, 'home', [
-            'equipment' => $this->service->list(),
-            'error' => null,
+            'equipment' => $equipment,
+            'filters' => [
+                'q' => is_string($filters['q'] ?? null) ? trim($filters['q']) : '',
+                'category' => is_string($filters['category'] ?? null) ? trim($filters['category']) : '',
+                'status' => is_string($filters['status'] ?? null) ? strtoupper(trim($filters['status'])) : '',
+            ],
+            'error' => $error,
             'csrf' => $this->csrfToken(),
-        ]);
+        ], $error !== null ? 422 : 200);
     }
 
     public function webCreate(
@@ -39,7 +55,6 @@ final class EquipmentController
         $data = $request->getParsedBody();
         $data = is_array($data) ? $data : [];
 
-        // La session est utilisée uniquement pour la vue HTML et son CSRF.
         $received = $data['csrf'] ?? null;
         $validToken = is_string($received)
             && hash_equals($this->csrfToken(), $received);
@@ -62,7 +77,6 @@ final class EquipmentController
             ], 422);
         }
 
-        // Le navigateur recharge ensuite en GET : pas de double POST au rafraîchissement.
         return $response
             ->withHeader('Location', '/')
             ->withStatus(303);
@@ -72,8 +86,17 @@ final class EquipmentController
         ServerRequestInterface $request,
         ResponseInterface $response
     ): ResponseInterface {
-        // Le contrat du cours demande un tableau JSON, y compris [].
-        return JsonResponder::respond($response, $this->service->list());
+        $filters = $request->getQueryParams();
+
+        try {
+            $items = $this->service->list(is_array($filters) ? $filters : []);
+            return JsonResponder::respond($response, $items);
+        } catch (InvalidArgumentException $exception) {
+            return JsonResponder::respond($response, [
+                'error' => 'VALIDATION_ERROR',
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     public function apiShow(
@@ -116,10 +139,6 @@ final class EquipmentController
             ->withHeader('Location', '/api/equipment/' . $equipment['id']);
     }
 
-    /**
-     * Pour cette démo, seule l'interface HTML utilise une session.
-     * Les routes /api ne lisent pas la session PHP.
-     */
     private function csrfToken(): string
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
