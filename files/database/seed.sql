@@ -1,5 +1,4 @@
 -- RepairLab : jeu d'essai (données fictives)
--- À exécuter après 01_schema.sql, sur des tables vides.
 -- Mot de passe de tous les comptes de démonstration : repairlab2026 (hash bcrypt généré avec password_hash).
 -- Les dates sont relatives à la date d'exécution, pour que les scénarios restent valides (fenêtre de 30 jours de R8).
 -- Aucune donnée personnelle réelle : les noms et adresses sont inventés.

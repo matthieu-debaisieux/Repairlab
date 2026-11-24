@@ -46,7 +46,7 @@
 
 <form method="post" action="/equipment">
     <input type="hidden" name="csrf"
-           value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+            value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
 
     <label>
         Nom
@@ -56,9 +56,8 @@
     <label>
         Statut
         <select name="status">
-            <option value="AVAILABLE">Disponible</option>
-            <option value="MAINTENANCE">Maintenance</option>
-            <option value="UNAVAILABLE">Indisponible</option>
+            <option value="EN_SERVICE">En service</option>
+            <option value="HORS_SERVICE">Hors service</option>
         </select>
     </label>
 
@@ -68,14 +67,14 @@
 <h2>Équipements</h2>
 
 <table>
-    <thead><tr><th>ID</th><th>Nom</th><th>Statut</th><th>Créé le</th></tr></thead>
+    <thead><tr><th>ID</th><th>Nom</th><th>Statut</th><th>Localisation</th></tr></thead>
     <tbody>
     <?php foreach ($equipment as $item): ?>
         <tr>
             <td><?= (int) $item['id'] ?></td>
             <td><?= htmlspecialchars((string) $item['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
             <td><?= htmlspecialchars((string) $item['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars((string) $item['created_at'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
+            <td><?= htmlspecialchars((string) $item['localisation'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
         </tr>
     <?php endforeach; ?>
     </tbody>

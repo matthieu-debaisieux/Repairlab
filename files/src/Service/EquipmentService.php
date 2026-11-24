@@ -10,9 +10,8 @@ use InvalidArgumentException;
 final class EquipmentService
 {
     private const ALLOWED_STATUSES = [
-        'AVAILABLE',
-        'MAINTENANCE',
-        'UNAVAILABLE',
+        'EN_SERVICE',
+        'HORS_SERVICE',
     ];
 
     public function __construct(private EquipmentRepository $repository)
@@ -44,7 +43,7 @@ final class EquipmentService
             );
         }
 
-        $rawStatus = $input['status'] ?? 'AVAILABLE';
+        $rawStatus = $input['status'] ?? 'EN_SERVICE';
         if (!is_string($rawStatus)) {
             throw new InvalidArgumentException('Le statut doit être une chaîne.');
         }
