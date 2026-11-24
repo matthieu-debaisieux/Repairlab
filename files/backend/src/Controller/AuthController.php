@@ -86,15 +86,18 @@ final class AuthController
     }
 
     public function technicien(
-        ServerRequestInterface $request,
-        ResponseInterface $response
+    ServerRequestInterface $request,
+    ResponseInterface $response
     ): ResponseInterface {
-        return $this->renderer->render($response, 'espace', [
-            'title' => 'Espace technicien',
-            'user' => $this->session->user(),
-            'csrf' => $this->session->csrfToken(),
-        ]);
-    }
+    $dashboard = $this->dashboardService->getDashboardData();
+
+    return $this->renderer->render($response, 'espace', [
+        'title' => 'Tableau de bord technicien',
+        'user' => $this->session->user(),
+        'csrf' => $this->session->csrfToken(),
+        'dashboard' => $dashboard,
+    ]);
+}
 
     private function renderLogin(
         ResponseInterface $response,
