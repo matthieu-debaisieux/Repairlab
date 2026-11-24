@@ -37,16 +37,16 @@ final class EquipmentRepository
     public function create(string $name, string $status): array
     {
         $this->database->insert('EQUIPEMENT', [
-            'nom (name)' => $name,
-            'statut_technique (status)' => $status,
+            'nom' => $name,
+            'statut_technique' => $status,
         ]);
 
         $id = (int) $this->database->id();
 
         return $this->find($id) ?? [
-            'id_equipement (id)' => $id,
-            'nom (name)' => $name,
-            'statut_technique (status)' => $status,
+            'id_equipement' => $id,
+            'nom' => $name,
+            'statut_technique' => $status,
         ];
     }
 }

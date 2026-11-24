@@ -14,9 +14,9 @@ use Medoo\Medoo;
 $database = new Medoo([
     'type' => 'mysql',
     'host' => '127.0.0.1',
-    'database' => 'bts_web', // <-- Mets le nom exact de ta base
-    'username' => 'root',      // <-- Ton utilisateur MySQL
-    'password' => 'root',          // <-- Ton mot de passe MySQL
+    'database' => 'bts_web',
+    'username' => 'root',
+    'password' => 'root',
     'charset' => 'utf8mb4',
     'error' => PDO::ERRMODE_EXCEPTION,
 ]);

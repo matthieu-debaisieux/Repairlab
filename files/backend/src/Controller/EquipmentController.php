@@ -56,7 +56,7 @@ final class EquipmentController
             $this->service->create($data);
         } catch (InvalidArgumentException $exception) {
             return $this->renderer->render($response, 'home', [
-                'EQUIPEMENT' => $this->service->list(),
+                'equipment' => $this->service->list(),
                 'error' => $exception->getMessage(),
                 'csrf' => $this->csrfToken(),
             ], 422);
