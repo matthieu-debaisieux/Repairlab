@@ -9,6 +9,10 @@ use App\Repository\EquipmentRepository;
 use App\Service\EquipmentService;
 use Dotenv\Dotenv;
 use Slim\Factory\AppFactory;
+use App\Controller\AuthController;
+use App\Http\Session;
+use App\Repository\UserRepository;
+use App\Service\AuthService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -25,6 +29,12 @@ $repository = new EquipmentRepository($database);
 $service = new EquipmentService($repository);
 $renderer = new ViewRenderer($root . '/templates');
 $controller = new EquipmentController($service, $renderer);
+$session = new Session();
+$authController = new AuthController(
+    new AuthService(new UserRepository($database)),
+    $session,
+    $renderer
+);
 
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
@@ -36,5 +46,6 @@ $app->addErrorMiddleware(
 
 (require $root . '/routes/web.php')($app, $controller);
 (require $root . '/routes/api.php')($app, $controller);
+(require $root . '/routes/auth.php')($app, $authController, $session);
 
 $app->run();
