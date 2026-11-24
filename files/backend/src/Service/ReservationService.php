@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Domain\ReservationRefusee;
 use App\Repository\CreneauPrioritaireRepository;
 use App\Repository\ReservationRepository;
 use InvalidArgumentException;
@@ -16,7 +17,8 @@ final class ReservationService
     ) {}
 
     /**
-     * @return array{resultat: string, id_reservation: ?int}
+     * @return array<string, mixed>
+     * @throws ReservationRefusee
      */
     public function creer(
         int $idEquipement,
@@ -32,22 +34,19 @@ final class ReservationService
         $creneau = $this->creneauRepository->findChevauchant($idEquipement, $dateDebut, $dateFin);
 
         if ($creneau === null) {
-            // Créneau ordinaire : confirmation directe (sous réserve des conflits / R3 dans la SP)
             $idCreneau = null;
             $statutInitial = 'CONFIRMEE';
         } else {
-            // Créneau prioritaire détecté
             $idCreneau = (int) $creneau['id_creneau'];
-
-            $estTechnicienAutorise = in_array($roleUtilisateur, ['TECHNICIEN'], true);
+            $estTechnicienAutorise = in_array($roleUtilisateur, ['TECHNICIEN', 'ADMIN'], true);
             $statutInitial = $estTechnicienAutorise ? 'CONFIRMEE' : 'DEMANDEE';
         }
 
-        return $this->reservationRepository->creerReservation(
-            idEquipement: $idEquipement,
-            idUtilisateur: $idUtilisateur,
-            dateDebut: $dateDebut,
-            dateFin: $dateFin,
+        return $this->reservationRepository->create(
+            userId: $idUtilisateur,
+            equipmentId: $idEquipement,
+            start: $dateDebut,
+            end: $dateFin,
             statutInitial: $statutInitial,
             idCreneau: $idCreneau
         );
