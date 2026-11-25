@@ -22,7 +22,7 @@ composer install
 
 Copiez `.env.example` en `.env` (PowerShell : `Copy-Item .env.example .env`) puis configurez votre accès SQL.
 
-Créez la base `bts_web`, importez `database/schema.sql` puis `database/seed.sql`.
+Créez la base `bts_web`, importez `database/01_schema.sql`, `database/02_seed.sql` puis `database/03_procedures.sql`, dans cet ordre.
 
 Démarrez :
 

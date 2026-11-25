@@ -1,0 +1,1282 @@
+diff --git a/.gitignore b/.gitignore
+index 349e121..3b1731a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,7 +1,18 @@
+-/vendor/
+-/.env
+-/.idea/
+-/.vscode/
++# Secrets et configuration locale
++.env
++.env.*
++!.env.example
++
++# Dépendances
++vendor/
++node_modules/
++
++# Éditeurs et système
++.idea/
++.vscode/
+ .DS_Store
+-/storage/logs/*.log
+-/tests/
+\ No newline at end of file
++Thumbs.db
++
++# Journaux
++*.log
++storage/logs/*.log
+diff --git a/README.md b/README.md
+index 518954c..f562981 100644
+--- a/README.md
++++ b/README.md
+@@ -5,23 +5,14 @@ Projet réalisé pendant la semaine intensive BTS SIO SLAM, du 23 au 27 novembre
+ 
+ > Promesse : une machine en panne ou déjà réservée ne peut pas être utilisée par erreur.
+ 
+-## Fonctionnalités
+-
+-- Vitrine publique et catalogue des équipements.
+-- Connexion avec trois rôles : administrateur, technicien, adhérent (droits vérifiés côté serveur).
+-- Réservation de créneaux et suivi « mes créneaux ».
+-- Signalement d'incidents, interventions et dossier de remise en service.
+-- Tableau de bord de disponibilité, avec la raison du statut.
+-- API JSON partageant les règles métier du site.
+-
+ ## Règles métier retenues
+ 
+ | Règle | Type | Principe |
+ |---|---|---|
+-| R1 — Réservation prioritaire | Contractuelle | Certains créneaux sont réservés aux ateliers encadrés. |
++| R1 — Réservation prioritaire | Contractuelle | Certains créneaux sont réservés aux ateliers encadrés : un adhérent obtient une demande (`DEMANDEE`), un technicien confirme. |
+ | R3 — Panne bloquante | Contractuelle | Un incident bloquant interdit les nouvelles réservations. |
+ | R6 — Procédure d'un incident | Contractuelle | `OUVERT → EN_COURS → RESOLU → CLOTURE`, retour arrière tracé. |
+-| R8 — Trois pannes en trente jours | Extension | Indicateur `CONTROLE_REQUIS` sur le tableau de bord. |
++| R8 — Trois pannes en trente jours | Extension | Indicateur `CONTROLE_REQUIS`. |
+ | R9 — Disponibilité expliquée | Extension | Statut précis avec la raison. |
+ | R10 — Validation qualité | Extension | Dossier complet exigé avant la remise en service. |
+ 
+@@ -30,69 +21,100 @@ Le détail est dans [`documentation/cahier-des-charges.md`](documentation/cahier
+ ## Technologies
+ 
+ - PHP 8.2+, Slim 4, Medoo (au-dessus de PDO), Composer
+-- MariaDB
+-- Front : React, Tailwind CSS, DaisyUI
+-- Architecture : Contrôleur → Service → Repository → SQL
++- MySQL 5.7+ ou MariaDB 10.2+ (les contraintes `CHECK` ne sont appliquées qu'à partir de MySQL 8.0.16 et MariaDB 10.2.1 ; avec une version plus ancienne, les contrôles sont faits dans les services PHP)
++- Architecture : Route → Contrôleur → Service → Repository → SQL
++- Front React / Tailwind CSS / DaisyUI : prévu, à valider avec l'enseignant
+ 
+ ## Structure du dépôt
+ 
+ ```text
+-documentation/   cahier des charges, MCD, MLD, maquettes
+-sql/             scripts SQL numérotés (schéma, jeu d'essai, vues, procédure, trigger)
+-starter-kit/     point de départ fourni (à faire évoluer)
++documentation/        cahier des charges, MCD (Looping), maquettes, documents techniques
++  technique/          architecture MVC, contrat API, cas d'usage
++files/backend/        application PHP
++  database/           01_schema.sql, 02_seed.sql, 03_procedures.sql (à exécuter dans cet ordre)
++  src/                contrôleurs, services, repositories, middlewares
++  routes/ templates/  routes Slim et vues HTML
++  tests/              tests PHP
+ ```
+ 
+-Le code de l'application sera ajouté dans son propre dossier (à compléter).
+-
+ ## Installation
+ 
+-### Prérequis
++Prérequis : PHP 8.2+ avec `pdo_mysql`, Composer, un serveur MySQL ou MariaDB.
++
++1. Installer les dépendances et préparer la configuration :
++   ```bash
++   cd files/backend
++   composer install
++   cp .env.example .env     # puis renseigner DB_USER et DB_PASSWORD (le fichier .env n'est jamais commité)
++   ```
++2. Créer la base (nom par défaut : `bts_web`, jeu de caractères `utf8mb4`) puis exécuter les scripts **dans l'ordre**, avec phpMyAdmin (onglet Importer) ou en ligne de commande :
++   ```bash
++   mysql -u <utilisateur> -p bts_web < database/01_schema.sql
++   mysql -u <utilisateur> -p bts_web < database/02_seed.sql
++   mysql -u <utilisateur> -p bts_web < database/03_procedures.sql
++   ```
++   Les scripts se rejouent sur une base existante : `01_schema.sql` supprime puis recrée les tables.
++3. Lancer le serveur de développement :
++   ```bash
++   composer serve
++   ```
++   Puis ouvrir <http://127.0.0.1:8080/>.
+ 
+-- PHP 8.2 ou plus, Composer
+-- MariaDB 10.2 ou plus
+-- Node.js (pour le front)
++## Comptes de démonstration
+ 
+-### Base de données
++Mot de passe de tous les comptes : `repairlab2026`. Ces comptes et ce mot de passe sont publics : à supprimer ou changer avant tout déploiement réel.
+ 
+-Les scripts sont à rejouer dans l'ordre sur une base vide.
++| E-mail | Rôle |
++|---|---|
++| alice.martin@fabrique.example | Administrateur |
++| karim.benali@fabrique.example | Technicien |
++| camille.durand@fabrique.example | Adhérent |
++| lucas.moreau@fabrique.example | Adhérent |
++| ines.petit@fabrique.example | Adhérent |
++| hugo.roux@fabrique.example | Adhérent |
+ 
+-```bash
+-mysql -u <utilisateur> -p -e "CREATE DATABASE repairlab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+-mysql -u <utilisateur> -p repairlab < sql/01_schema.sql
+-```
++## Pages et API
+ 
+-Les scripts suivants (jeu d'essai, vues, procédure stockée, trigger) seront ajoutés dans `sql/`.
++| Route | Accès |
++|---|---|
++| `GET /` | Catalogue public avec recherche et filtres |
++| `GET /login`, `POST /login`, `POST /logout` | Connexion et déconnexion |
++| `GET /mon-espace` | Toute personne connectée |
++| `GET /technicien` | Technicien et administrateur |
++| `GET /api/equipment`, `GET /api/equipment/{id}` | Public |
++| `POST /api/reservations` | Connecté, `Content-Type: application/json` |
++
++Le contrat complet est dans [`documentation/technique/contrat-api.md`](documentation/technique/contrat-api.md).
+ 
+-### Application
++## Tests
+ 
+ ```bash
+-composer install
+-cp .env.example .env     # puis renseigner l'accès à la base (le fichier .env n'est jamais commité)
++cd files/backend
++composer test       # contrat JSON, sans base de données
++composer test:db    # catalogue et réservations ; utilise la base du .env, y crée puis supprime ses propres lignes
+ ```
+ 
+-Commande de lancement : à compléter.
+-
+-## Comptes de démonstration
++## Sécurité
+ 
+-À compléter une fois le jeu d'essai écrit (un administrateur, un technicien, des adhérents). Aucune donnée personnelle réelle.
++- Mots de passe hachés (`password_hash`), session régénérée à la connexion, cookie `HttpOnly` et `SameSite=Lax`.
++- Jeton CSRF sur les formulaires ; sur l'API, les écritures exigent du JSON et une origine identique.
++- Droits vérifiés côté serveur par un middleware ; requêtes SQL paramétrées ; sorties HTML échappées.
++- `APP_DEBUG=false` pour toute démonstration ou production.
+ 
+ ## Avancement
+ 
+ | Étape | État |
+ |---|---|
+-| Cahier des charges | Fait |
+-| MCD et schéma SQL | Fait |
+-| Maquettes | Fait |
+-| Jeu d'essai, vues, procédure, trigger | À faire |
+-| API et règles R1, R3, R6 | À faire |
++| Cahier des charges, MCD, schéma SQL, maquettes | Fait |
++| Authentification et rôles | Fait |
++| Catalogue, recherche et filtres | Fait |
++| Réservation avec contrôle du chevauchement (procédure stockée) | Fait |
++| R1 : réservation prioritaire (demande, puis confirmation par un technicien) | Demande faite, confirmation à faire |
++| Annulation, « mes créneaux », incidents, interventions | À faire |
++| R3, R6, vues SQL, trigger | À faire |
+ | Extensions R8, R9, R10 | À faire |
+-| Tests, recette, documentation de déploiement | À faire |
+-
+-## Documentation
+-
+-- [Cahier des charges](documentation/cahier-des-charges.md)
+-- Schéma de la base : [`sql/01_schema.sql`](sql/01_schema.sql)
++| Recette, documentation de déploiement | À faire |
+ 
+ ## Auteur
+ 
+-Matthieu Debaisieux — BTS SIO SLAM.
++[Ton nom] — BTS SIO SLAM.
+diff --git a/documentation/cahier-des-charges.md b/documentation/cahier-des-charges.md
+index 83bd56f..236e299 100644
+--- a/documentation/cahier-des-charges.md
++++ b/documentation/cahier-des-charges.md
+@@ -148,7 +148,7 @@ Aucune table de qualification, de stock de pièces ou de pointage n'est créée
+ 
+ ### Exigences
+ 
+-- MCD Merise, puis MLD avec clés primaires et étrangères, puis scripts SQL ordonnés dans `sql/`.
++- MCD Merise, puis MLD avec clés primaires et étrangères, puis scripts SQL ordonnés dans `files/backend/database/`.
+ - Contraintes d'intégrité (clés, `CHECK`, `UNIQUE`), requêtes paramétrées, jeu d'essai cohérent.
+ - Aucune donnée personnelle réelle dans les jeux d'essai.
+ - Les informations calculables ne sont pas dupliquées sans justification écrite.
+diff --git a/documentation/technique/contrat-api.md b/documentation/technique/contrat-api.md
+index 7ea59d6..e5b57a3 100644
+--- a/documentation/technique/contrat-api.md
++++ b/documentation/technique/contrat-api.md
+@@ -5,10 +5,10 @@ Version de travail du 24 novembre 2026. Les routes et les codes sont à ajuster
+ ## Conventions
+ 
+ - Format JSON, encodage UTF-8, préfixe `/api`.
+-- Authentification : la même session que le site. Sans session, les routes protégées renvoient 401.
++- Authentification : la même session que le site. Les écritures exigent `Content-Type: application/json` et, si l'en-tête `Origin` est présent, le même site que l'API (protection CSRF). Sans session, les routes protégées renvoient 401.
+ - Les règles métier sont identiques pour le site et pour l'API : elles vivent dans les services, jamais dans les vues ni dans le navigateur.
+ - Dates au format ISO 8601 (`2026-11-26T14:00:00`).
+-- Erreur : `{"erreur": {"code": "INCIDENT_BLOQUANT", "message": "Réservation impossible : un incident bloquant est ouvert."}}`
++- Erreur : `{"error": "INCIDENT_BLOQUANT", "message": "Réservation impossible : un incident bloquant est ouvert."}`
+ 
+ ## Codes de statut
+ 
+@@ -52,7 +52,7 @@ Disponibilité (R9) :
+ Refus d'une transition (R6) :
+ 
+ ```json
+-{"erreur": {"code": "TRANSITION_INTERDITE", "message": "Vous ne pouvez pas revenir en arrière : rouvrez un ticket."}}
++{"error": "TRANSITION_INTERDITE", "message": "Vous ne pouvez pas revenir en arrière : rouvrez un ticket."}
+ ```
+ 
+ ## Points à valider
+diff --git a/files/backend/.env.example b/files/backend/.env.example
+index b35311e..8b08b46 100644
+--- a/files/backend/.env.example
++++ b/files/backend/.env.example
+@@ -1,10 +1,13 @@
+ APP_ENV=dev
+-APP_DEBUG=true
++# true uniquement en local : en démonstration ou en production, laisser false
++# (sinon les pages d'erreur révèlent des détails techniques).
++APP_DEBUG=false
+ 
+ DB_TYPE=mysql
+ DB_HOST=127.0.0.1
+ DB_PORT=3306
+ DB_NAME=bts_web
++# Utiliser un compte dédié à l'application plutôt que root dès que possible.
+ DB_USER=root
+ DB_PASSWORD=
+ DB_CHARSET=utf8mb4
+diff --git a/files/backend/.gitignore b/files/backend/.gitignore
+index 349e121..b3231e2 100644
+--- a/files/backend/.gitignore
++++ b/files/backend/.gitignore
+@@ -4,4 +4,3 @@
+ /.vscode/
+ .DS_Store
+ /storage/logs/*.log
+-/tests/
+\ No newline at end of file
+diff --git a/files/backend/README.md b/files/backend/README.md
+index bbbf5fb..b1a84b4 100644
+--- a/files/backend/README.md
++++ b/files/backend/README.md
+@@ -22,7 +22,7 @@ composer install
+ 
+ Copiez `.env.example` en `.env` (PowerShell : `Copy-Item .env.example .env`) puis configurez votre accès SQL.
+ 
+-Créez la base `bts_web`, importez `database/schema.sql` puis `database/seed.sql`.
++Créez la base `bts_web`, importez `database/01_schema.sql`, `database/02_seed.sql` puis `database/03_procedures.sql`, dans cet ordre.
+ 
+ Démarrez :
+ 
+diff --git a/files/backend/composer.json b/files/backend/composer.json
+index da4d060..e3e80cd 100644
+--- a/files/backend/composer.json
++++ b/files/backend/composer.json
+@@ -18,6 +18,7 @@
+   },
+   "scripts": {
+     "serve": "php -S 127.0.0.1:8080 -t public public/router.php",
+-    "test": "php tests/http-input.php"
++    "test": "php tests/http-input.php",
++    "test:db": "php tests/test_catalogue_filtres.php && php tests/test_reservation.php && php tests/test_recette_mardi.php"
+   }
+ }
+diff --git a/files/backend/database/schema.sql b/files/backend/database/01_schema.sql
+similarity index 100%
+rename from files/backend/database/schema.sql
+rename to files/backend/database/01_schema.sql
+diff --git a/files/backend/database/seed.sql b/files/backend/database/02_seed.sql
+similarity index 100%
+rename from files/backend/database/seed.sql
+rename to files/backend/database/02_seed.sql
+diff --git a/files/backend/database/sql/01_creer_reservation.sql b/files/backend/database/03_procedures.sql
+similarity index 100%
+rename from files/backend/database/sql/01_creer_reservation.sql
+rename to files/backend/database/03_procedures.sql
+diff --git a/files/backend/public/index.php b/files/backend/public/index.php
+index 8fd4c8f..79067ed 100644
+--- a/files/backend/public/index.php
++++ b/files/backend/public/index.php
+@@ -2,17 +2,22 @@
+ 
+ declare(strict_types=1);
+ 
++use App\Controller\AuthController;
+ use App\Controller\EquipmentController;
++use App\Controller\ReservationController;
+ use App\Database\DatabaseFactory;
++use App\Http\Session;
+ use App\Http\ViewRenderer;
++use App\Repository\CreneauPrioritaireRepository;
+ use App\Repository\EquipmentRepository;
++use App\Repository\ReservationRepository;
++use App\Repository\UserRepository;
++use App\Service\AuthService;
+ use App\Service\EquipmentService;
++use App\Service\ReservationService;
++use App\Service\TechnicienDashboardService;
+ use Dotenv\Dotenv;
+ use Slim\Factory\AppFactory;
+-use App\Controller\AuthController;
+-use App\Http\Session;
+-use App\Repository\UserRepository;
+-use App\Service\AuthService;
+ 
+ require dirname(__DIR__) . '/vendor/autoload.php';
+ 
+@@ -25,15 +30,25 @@ $settings = require $root . '/config/settings.php';
+ $app = AppFactory::create();
+ 
+ $database = DatabaseFactory::create($settings['database']);
+-$repository = new EquipmentRepository($database);
+-$service = new EquipmentService($repository);
+-$renderer = new ViewRenderer($root . '/templates');
+-$controller = new EquipmentController($service, $renderer);
+ $session = new Session();
++$renderer = new ViewRenderer($root . '/templates');
++
++$equipmentController = new EquipmentController(
++    new EquipmentService(new EquipmentRepository($database)),
++    $renderer
++);
+ $authController = new AuthController(
+     new AuthService(new UserRepository($database)),
+     $session,
+-    $renderer
++    $renderer,
++    new TechnicienDashboardService($database)
++);
++$reservationController = new ReservationController(
++    new ReservationService(
++        new ReservationRepository($database),
++        new CreneauPrioritaireRepository($database)
++    ),
++    $session
+ );
+ 
+ $app->addBodyParsingMiddleware();
+@@ -44,8 +59,8 @@ $app->addErrorMiddleware(
+     true
+ );
+ 
+-(require $root . '/routes/web.php')($app, $controller);
+-(require $root . '/routes/api.php')($app, $controller);
++(require $root . '/routes/web.php')($app, $equipmentController);
++(require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $session);
+ (require $root . '/routes/auth.php')($app, $authController, $session);
+ 
+ $app->run();
+diff --git a/files/backend/routes/api.php b/files/backend/routes/api.php
+index 46404e7..15effb1 100644
+--- a/files/backend/routes/api.php
++++ b/files/backend/routes/api.php
+@@ -3,26 +3,32 @@
+ declare(strict_types=1);
+ 
+ use App\Controller\EquipmentController;
++use App\Controller\ReservationController;
+ use App\Http\JsonResponder;
++use App\Http\Session;
++use App\Middleware\ApiWriteGuard;
++use App\Middleware\RequireRole;
+ use Psr\Http\Message\ResponseInterface as Response;
+ use Psr\Http\Message\ServerRequestInterface as Request;
+ use Slim\App;
+ use Slim\Routing\RouteCollectorProxy;
+ 
+-return static function (App $app, EquipmentController $controller): void {
+-    $app->group('/api', function (RouteCollectorProxy $group) use ($controller): void {
+-        $group->get('/health', function (
+-            Request $request,
+-            Response $response
+-        ): Response {
+-            return JsonResponder::respond($response, [
+-                'status' => 'ok',
+-                'service' => 'bts2-web-starter',
+-            ]);
++return static function (
++    App $app,
++    EquipmentController $equipment,
++    ReservationController $reservations,
++    Session $session
++): void {
++    $app->group('/api', function (RouteCollectorProxy $group) use ($equipment, $reservations, $session): void {
++        $group->get('/health', function (Request $request, Response $response): Response {
++            return JsonResponder::respond($response, ['status' => 'ok']);
+         });
+ 
+-        $group->get('/equipment', [$controller, 'apiIndex']);
+-        $group->get('/equipment/{id:[0-9]+}', [$controller, 'apiShow']);
+-        $group->post('/equipment', [$controller, 'apiCreate']);
+-    });
++        $group->get('/equipment', [$equipment, 'apiIndex']);
++        $group->get('/equipment/{id:[0-9]+}', [$equipment, 'apiShow']);
++
++        // Toute personne connectée peut réserver ; les règles métier sont dans le service.
++        $group->post('/reservations', [$reservations, 'create'])
++            ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
++    })->add(new ApiWriteGuard());
+ };
+diff --git a/files/backend/routes/web.php b/files/backend/routes/web.php
+index 937a9af..8a9a37a 100644
+--- a/files/backend/routes/web.php
++++ b/files/backend/routes/web.php
+@@ -3,31 +3,8 @@
+ declare(strict_types=1);
+ 
+ use App\Controller\EquipmentController;
+-use Psr\Http\Message\ResponseInterface as Response;
+-use Psr\Http\Message\ServerRequestInterface as Request;
+ use Slim\App;
+ 
+ return static function (App $app, EquipmentController $controller): void {
+     $app->get('/', [$controller, 'index']);
+-
+-    $app->post('/equipment', [$controller, 'webCreate']);
+-
+-    $app->get('/hello/{name}', function (
+-        Request $request,
+-        Response $response,
+-        array $args
+-    ): Response {
+-        $name = htmlspecialchars(
+-            (string) ($args['name'] ?? 'inconnu'),
+-            ENT_QUOTES,
+-            'UTF-8'
+-        );
+-
+-        $response->getBody()->write(
+-            '<h1>Bonjour ' . $name . '</h1>'
+-            . '<p>Cette route montre un paramètre dynamique Slim.</p>'
+-        );
+-
+-        return $response;
+-    });
+ };
+diff --git a/files/backend/src/Controller/AuthController.php b/files/backend/src/Controller/AuthController.php
+index 18d5f57..8b67bfe 100644
+--- a/files/backend/src/Controller/AuthController.php
++++ b/files/backend/src/Controller/AuthController.php
+@@ -7,6 +7,7 @@ namespace App\Controller;
+ use App\Http\Session;
+ use App\Http\ViewRenderer;
+ use App\Service\AuthService;
++use App\Service\TechnicienDashboardService;
+ use Psr\Http\Message\ResponseInterface;
+ use Psr\Http\Message\ServerRequestInterface;
+ 
+@@ -15,7 +16,8 @@ final class AuthController
+     public function __construct(
+         private AuthService $auth,
+         private Session $session,
+-        private ViewRenderer $renderer
++        private ViewRenderer $renderer,
++        private TechnicienDashboardService $dashboardService
+     ) {
+     }
+ 
+@@ -86,18 +88,16 @@ final class AuthController
+     }
+ 
+     public function technicien(
+-    ServerRequestInterface $request,
+-    ResponseInterface $response
++        ServerRequestInterface $request,
++        ResponseInterface $response
+     ): ResponseInterface {
+-    $dashboard = $this->dashboardService->getDashboardData();
+-
+-    return $this->renderer->render($response, 'espace', [
+-        'title' => 'Tableau de bord technicien',
+-        'user' => $this->session->user(),
+-        'csrf' => $this->session->csrfToken(),
+-        'dashboard' => $dashboard,
+-    ]);
+-}
++        return $this->renderer->render($response, 'espace', [
++            'title' => 'Tableau de bord technicien',
++            'user' => $this->session->user(),
++            'csrf' => $this->session->csrfToken(),
++            'dashboard' => $this->dashboardService->getDashboardData(),
++        ]);
++    }
+ 
+     private function renderLogin(
+         ResponseInterface $response,
+diff --git a/files/backend/src/Controller/EquipmentController.php b/files/backend/src/Controller/EquipmentController.php
+index 8de32f3..6b0a21f 100644
+--- a/files/backend/src/Controller/EquipmentController.php
++++ b/files/backend/src/Controller/EquipmentController.php
+@@ -4,8 +4,6 @@ declare(strict_types=1);
+ 
+ namespace App\Controller;
+ 
+-use App\Http\HttpInputException;
+-use App\Http\JsonInput;
+ use App\Http\JsonResponder;
+ use App\Http\ViewRenderer;
+ use App\Service\EquipmentService;
+@@ -44,44 +42,9 @@ final class EquipmentController
+                 'status' => is_string($filters['status'] ?? null) ? strtoupper(trim($filters['status'])) : '',
+             ],
+             'error' => $error,
+-            'csrf' => $this->csrfToken(),
+         ], $error !== null ? 422 : 200);
+     }
+ 
+-    public function webCreate(
+-        ServerRequestInterface $request,
+-        ResponseInterface $response
+-    ): ResponseInterface {
+-        $data = $request->getParsedBody();
+-        $data = is_array($data) ? $data : [];
+-
+-        $received = $data['csrf'] ?? null;
+-        $validToken = is_string($received)
+-            && hash_equals($this->csrfToken(), $received);
+-
+-        if (!$validToken) {
+-            return $this->renderer->render($response, 'home', [
+-                'equipment' => $this->service->list(),
+-                'error' => 'Requête refusée : jeton CSRF absent ou invalide.',
+-                'csrf' => $this->csrfToken(),
+-            ], 403);
+-        }
+-
+-        try {
+-            $this->service->create($data);
+-        } catch (InvalidArgumentException $exception) {
+-            return $this->renderer->render($response, 'home', [
+-                'equipment' => $this->service->list(),
+-                'error' => $exception->getMessage(),
+-                'csrf' => $this->csrfToken(),
+-            ], 422);
+-        }
+-
+-        return $response
+-            ->withHeader('Location', '/')
+-            ->withStatus(303);
+-    }
+-
+     public function apiIndex(
+         ServerRequestInterface $request,
+         ResponseInterface $response
+@@ -90,6 +53,7 @@ final class EquipmentController
+ 
+         try {
+             $items = $this->service->list(is_array($filters) ? $filters : []);
++
+             return JsonResponder::respond($response, $items);
+         } catch (InvalidArgumentException $exception) {
+             return JsonResponder::respond($response, [
+@@ -115,46 +79,4 @@ final class EquipmentController
+ 
+         return JsonResponder::respond($response, $equipment);
+     }
+-
+-    public function apiCreate(
+-        ServerRequestInterface $request,
+-        ResponseInterface $response
+-    ): ResponseInterface {
+-        try {
+-            $input = JsonInput::readObject($request);
+-            $equipment = $this->service->create($input);
+-        } catch (HttpInputException $exception) {
+-            return JsonResponder::respond($response, [
+-                'error' => 'INVALID_REQUEST',
+-                'message' => $exception->getMessage(),
+-            ], $exception->status);
+-        } catch (InvalidArgumentException $exception) {
+-            return JsonResponder::respond($response, [
+-                'error' => 'VALIDATION_ERROR',
+-                'message' => $exception->getMessage(),
+-            ], 422);
+-        }
+-
+-        return JsonResponder::respond($response, $equipment, 201)
+-            ->withHeader('Location', '/api/equipment/' . $equipment['id']);
+-    }
+-
+-    private function csrfToken(): string
+-    {
+-        if (session_status() !== PHP_SESSION_ACTIVE) {
+-            session_set_cookie_params([
+-                'path' => '/',
+-                'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+-                'httponly' => true,
+-                'samesite' => 'Lax',
+-            ]);
+-            session_start();
+-        }
+-
+-        if (!isset($_SESSION['csrf']) || !is_string($_SESSION['csrf'])) {
+-            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+-        }
+-
+-        return $_SESSION['csrf'];
+-    }
+-}
+\ No newline at end of file
++}
+diff --git a/files/backend/src/Controller/ReservationController.php b/files/backend/src/Controller/ReservationController.php
+index 0bc49f3..b549db6 100644
+--- a/files/backend/src/Controller/ReservationController.php
++++ b/files/backend/src/Controller/ReservationController.php
+@@ -2,93 +2,102 @@
+ 
+ declare(strict_types=1);
+ 
+-namespace App\Http\Controller;
++namespace App\Controller;
+ 
+ use App\Domain\ReservationRefusee;
++use App\Http\HttpInputException;
++use App\Http\JsonInput;
++use App\Http\JsonResponder;
+ use App\Http\Session;
+ use App\Service\ReservationService;
++use DateTimeImmutable;
+ use InvalidArgumentException;
+-use Psr\Http\Message\ResponseInterface as Response;
+-use Psr\Http\Message\ServerRequestInterface as Request;
++use Psr\Http\Message\ResponseInterface;
++use Psr\Http\Message\ServerRequestInterface;
+ 
+ final class ReservationController
+ {
+-    public function __construct(
+-        private readonly ReservationService $reservationService,
+-        private readonly Session $session
+-    ) {}
++    private const DATE_FORMATS = ['Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i'];
+ 
+-    public function create(Request $request, Response $response): Response
+-    {
+-        $currentUser = $this->resolveUser($request);
++    public function __construct(
++        private ReservationService $reservations,
++        private Session $session
++    ) {
++    }
+ 
+-        if ($currentUser === null) {
+-            return $this->json($response, [
+-                'error' => 'Authentification requise.',
++    /** POST /api/reservations : { "equipmentId": 1, "debut": "...", "fin": "..." } */
++    public function create(
++        ServerRequestInterface $request,
++        ResponseInterface $response
++    ): ResponseInterface {
++        $user = $this->session->user();
++        if ($user === null) {
++            return JsonResponder::respond($response, [
++                'error' => 'UNAUTHENTICATED',
++                'message' => 'Connexion requise.',
+             ], 401);
+         }
+ 
+-        $data = (array) ($request->getParsedBody() ?? []);
++        try {
++            $input = JsonInput::readObject($request);
++        } catch (HttpInputException $exception) {
++            return JsonResponder::respond($response, [
++                'error' => 'INVALID_REQUEST',
++                'message' => $exception->getMessage(),
++            ], $exception->status);
++        }
+ 
+-        $idEquipement = isset($data['id_equipement']) ? filter_var($data['id_equipement'], FILTER_VALIDATE_INT) : false;
+-        $dateDebut    = isset($data['date_debut']) && is_string($data['date_debut']) ? trim($data['date_debut']) : '';
+-        $dateFin      = isset($data['date_fin']) && is_string($data['date_fin']) ? trim($data['date_fin']) : '';
++        $equipmentId = $input['equipmentId'] ?? null;
++        $equipmentId = (is_int($equipmentId) || (is_string($equipmentId) && ctype_digit($equipmentId)))
++            ? (int) $equipmentId
++            : 0;
++        $start = $this->parseDate($input['debut'] ?? null);
++        $end = $this->parseDate($input['fin'] ?? null);
+ 
+-        if ($idEquipement === false || $idEquipement <= 0 || $dateDebut === '' || $dateFin === '') {
+-            return $this->json($response, [
+-                'error' => 'Les champs id_equipement, date_debut et date_fin sont requis.',
+-                'code'  => 'DONNEES_INCOMPLETES',
++        if ($equipmentId <= 0 || $start === null || $end === null) {
++            return JsonResponder::respond($response, [
++                'error' => 'VALIDATION_ERROR',
++                'message' => 'equipmentId (entier), debut et fin (AAAA-MM-JJ HH:MM:SS) sont obligatoires.',
+             ], 422);
+         }
+ 
+         try {
+-            $reservation = $this->reservationService->creer(
+-                idEquipement: (int) $idEquipement,
+-                idUtilisateur: (int) ($currentUser['id'] ?? $currentUser['id_utilisateur'] ?? 0),
+-                roleUtilisateur: (string) ($currentUser['role'] ?? ''),
+-                dateDebut: $dateDebut,
+-                dateFin: $dateFin
++            $reservation = $this->reservations->creer(
++                idEquipement: $equipmentId,
++                idUtilisateur: (int) $user['id'],
++                roleUtilisateur: (string) $user['role'],
++                dateDebut: $start,
++                dateFin: $end
+             );
+-
+-            return $this->json($response, [
+-                'data' => $reservation,
+-            ], 201);
+-        } catch (ReservationRefusee $e) {
+-            return $this->json($response, [
+-                'error'  => $e->getMessage(),
+-                'reason' => $e->reason,
+-            ], $e->httpStatus);
+-        } catch (InvalidArgumentException $e) {
+-            return $this->json($response, [
+-                'error' => $e->getMessage(),
+-                'code'  => 'DONNEES_INVALIDES',
++        } catch (ReservationRefusee $refus) {
++            return JsonResponder::respond($response, [
++                'error' => $refus->reason,
++                'message' => $refus->getMessage(),
++            ], $refus->httpStatus);
++        } catch (InvalidArgumentException $exception) {
++            return JsonResponder::respond($response, [
++                'error' => 'VALIDATION_ERROR',
++                'message' => $exception->getMessage(),
+             ], 422);
+         }
++
++        return JsonResponder::respond($response, $reservation, 201);
+     }
+ 
+-    /**
+-     * @return array<string, mixed>|null
+-     */
+-    private function resolveUser(Request $request): ?array
++    /** Accepte uniquement une date réelle et complète ; retourne le format SQL, ou null. */
++    private function parseDate(mixed $value): ?string
+     {
+-        $sessionUser = $this->session->user();
+-        if (is_array($sessionUser)) {
+-            return $sessionUser;
++        if (!is_string($value)) {
++            return null;
+         }
+ 
+-        $attrUser = $request->getAttribute('user');
+-        return is_array($attrUser) ? $attrUser : null;
+-    }
+-
+-    /**
+-     * @param array<string, mixed> $payload
+-     */
+-    private function json(Response $response, array $payload, int $status): Response
+-    {
+-        $response->getBody()->write((string) json_encode($payload, JSON_UNESCAPED_UNICODE));
++        foreach (self::DATE_FORMATS as $format) {
++            $date = DateTimeImmutable::createFromFormat('!' . $format, $value);
++            if ($date !== false && $date->format($format) === $value) {
++                return $date->format('Y-m-d H:i:s');
++            }
++        }
+ 
+-        return $response
+-            ->withHeader('Content-Type', 'application/json; charset=utf-8')
+-            ->withStatus($status);
++        return null;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/files/backend/src/Middleware/ApiWriteGuard.php b/files/backend/src/Middleware/ApiWriteGuard.php
+new file mode 100644
+index 0000000..ff9f5be
+--- /dev/null
++++ b/files/backend/src/Middleware/ApiWriteGuard.php
+@@ -0,0 +1,69 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Middleware;
++
++use App\Http\JsonResponder;
++use Psr\Http\Message\ResponseInterface;
++use Psr\Http\Message\ServerRequestInterface;
++use Psr\Http\Server\MiddlewareInterface;
++use Psr\Http\Server\RequestHandlerInterface;
++use Slim\Psr7\Response;
++
++/**
++ * Protège les écritures de l'API authentifiée par cookie de session (contre le CSRF) :
++ * - si l'en-tête Origin est présent, il doit désigner le même site que la requête ;
++ * - une écriture doit être envoyée en application/json (un formulaire HTML classique ne peut pas).
++ * Les lectures (GET, HEAD, OPTIONS) ne sont pas concernées.
++ * Derrière un reverse proxy, vérifier que l'hôte et le port vus par PHP sont ceux du navigateur.
++ */
++final class ApiWriteGuard implements MiddlewareInterface
++{
++    private const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
++
++    public function process(
++        ServerRequestInterface $request,
++        RequestHandlerInterface $handler
++    ): ResponseInterface {
++        $method = strtoupper($request->getMethod());
++
++        if (in_array($method, self::SAFE_METHODS, true)) {
++            return $handler->handle($request);
++        }
++
++        $origin = $request->getHeaderLine('Origin');
++        if ($origin !== '' && !$this->isSameOrigin($origin, $request)) {
++            return $this->deny(403, 'CROSS_ORIGIN_FORBIDDEN', 'Origine non autorisée.');
++        }
++
++        $hasBody = (int) $request->getBody()->getSize() > 0;
++        if (in_array($method, ['POST', 'PUT', 'PATCH'], true) || $hasBody) {
++            $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'))[0]));
++            if ($contentType !== 'application/json') {
++                return $this->deny(415, 'UNSUPPORTED_MEDIA_TYPE', 'Content-Type application/json attendu.');
++            }
++        }
++
++        return $handler->handle($request);
++    }
++
++    private function isSameOrigin(string $origin, ServerRequestInterface $request): bool
++    {
++        $parts = parse_url($origin);
++        if (!is_array($parts) || !isset($parts['host'])) {
++            return false;
++        }
++
++        $originPort = $parts['port'] ?? (($parts['scheme'] ?? 'http') === 'https' ? 443 : 80);
++        $uri = $request->getUri();
++        $requestPort = $uri->getPort() ?? ($uri->getScheme() === 'https' ? 443 : 80);
++
++        return strcasecmp($parts['host'], $uri->getHost()) === 0 && $originPort === $requestPort;
++    }
++
++    private function deny(int $status, string $code, string $message): ResponseInterface
++    {
++        return JsonResponder::respond(new Response(), ['error' => $code, 'message' => $message], $status);
++    }
++}
+diff --git a/files/backend/src/Repository/EquipmentRepository.php b/files/backend/src/Repository/EquipmentRepository.php
+index 8a7c94f..5d5c805 100644
+--- a/files/backend/src/Repository/EquipmentRepository.php
++++ b/files/backend/src/Repository/EquipmentRepository.php
+@@ -80,21 +80,4 @@ final class EquipmentRepository
+ 
+         return is_array($row) ? $row : null;
+     }
+-
+-    public function create(string $name, string $status): array
+-    {
+-        $this->database->insert('EQUIPEMENT', [
+-            'nom' => $name,
+-            'statut_technique' => $status,
+-            'visible_public' => 1,
+-        ]);
+-
+-        $id = (int) $this->database->id();
+-
+-        return $this->find($id) ?? [
+-            'id' => $id,
+-            'name' => $name,
+-            'status' => $status,
+-        ];
+-    }
+-}
+\ No newline at end of file
++}
+diff --git a/files/backend/src/Service/EquipmentService.php b/files/backend/src/Service/EquipmentService.php
+index 1b962b1..a561cc0 100644
+--- a/files/backend/src/Service/EquipmentService.php
++++ b/files/backend/src/Service/EquipmentService.php
+@@ -58,31 +58,4 @@ final class EquipmentService
+     {
+         return $this->repository->find($id);
+     }
+-
+-    public function create(array $input): array
+-    {
+-        $rawName = $input['name'] ?? null;
+-        if (!is_string($rawName)) {
+-            throw new InvalidArgumentException('Le nom doit être une chaîne.');
+-        }
+-
+-        $name = trim($rawName);
+-        if ($name === '' || mb_strlen($name, 'UTF-8') > 150) {
+-            throw new InvalidArgumentException(
+-                'Nom obligatoire, 150 caractères maximum.'
+-            );
+-        }
+-
+-        $rawStatus = $input['status'] ?? 'EN_SERVICE';
+-        if (!is_string($rawStatus)) {
+-            throw new InvalidArgumentException('Le statut doit être une chaîne.');
+-        }
+-
+-        $status = strtoupper(trim($rawStatus));
+-        if (!in_array($status, self::ALLOWED_STATUSES, true)) {
+-            throw new InvalidArgumentException('Le statut fourni est invalide.');
+-        }
+-
+-        return $this->repository->create($name, $status);
+-    }
+-}
+\ No newline at end of file
++}
+diff --git a/files/backend/templates/espace.php b/files/backend/templates/espace.php
+index 2fe4044..8a23a6c 100644
+--- a/files/backend/templates/espace.php
++++ b/files/backend/templates/espace.php
+@@ -2,35 +2,100 @@
+ /** @var string $title */
+ /** @var array $user */
+ /** @var string $csrf */
++/** @var ?array $dashboard */
++$dashboard = $dashboard ?? null;
++$e = static fn (mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
++$isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
+ ?>
+ <!doctype html>
+ <html lang="fr">
+ <head>
+     <meta charset="utf-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+-    <title><?= htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></title>
++    <title><?= $e($title) ?></title>
+     <style>
+-        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+-        form { display: grid; gap: .75rem; padding: 1rem; border: 1px solid #ccc; border-radius: .5rem; }
+-        input, button { padding: .65rem; font: inherit; }
+-        .error { padding: .75rem; border: 1px solid currentColor; }
++        body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
++        form.inline { display: inline; }
++        table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
++        th, td { border-bottom: 1px solid #ccc; padding: .4rem .5rem; text-align: left; }
++        .kpis { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
++        .kpi { border: 1px solid #ccc; border-radius: .5rem; padding: .75rem 1rem; }
++        .kpi strong { display: block; font-size: 1.6rem; }
+     </style>
+ </head>
+ <body>
+-<h1><?= htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h1>
++<h1><?= $e($title) ?></h1>
+ 
+ <p>
+-    Connecté en tant que
+-    <strong><?= htmlspecialchars($user['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
+-    (<?= htmlspecialchars($user['role'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>).
++    Connecté en tant que <strong><?= $e($user['name']) ?></strong> (<?= $e($user['role']) ?>).
+ </p>
+ 
+-<form method="post" action="/logout">
+-    <input type="hidden" name="csrf"
+-           value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
++<form class="inline" method="post" action="/logout">
++    <input type="hidden" name="csrf" value="<?= $e($csrf) ?>">
+     <button type="submit">Se déconnecter</button>
+ </form>
+ 
+-<p><a href="/">Catalogue</a> · <a href="/technicien">Espace technicien</a></p>
++<p>
++    <a href="/">Catalogue</a>
++    <?php if ($isStaff): ?> · <a href="/technicien">Tableau de bord technicien</a><?php endif; ?>
++</p>
++
++<?php if ($dashboard !== null): ?>
++    <div class="kpis">
++        <div class="kpi"><strong><?= (int) $dashboard['kpis']['pending_reservations_count'] ?></strong>Demandes en attente</div>
++        <div class="kpi"><strong><?= (int) $dashboard['kpis']['open_incidents_count'] ?></strong>Incidents actifs</div>
++        <div class="kpi"><strong><?= (int) $dashboard['kpis']['out_of_service_count'] ?></strong>Machines hors service</div>
++    </div>
++
++    <h2>Demandes en attente de validation</h2>
++    <?php if ($dashboard['pending_reservations'] === []): ?>
++        <p>Aucune demande en attente.</p>
++    <?php else: ?>
++        <table>
++            <thead><tr><th>Machine</th><th>Adhérent</th><th>Début</th><th>Fin</th></tr></thead>
++            <tbody>
++            <?php foreach ($dashboard['pending_reservations'] as $r): ?>
++                <tr>
++                    <td><?= $e($r['equipement_nom']) ?></td>
++                    <td><?= $e($r['utilisateur_nom']) ?></td>
++                    <td><?= $e($r['date_debut']) ?></td>
++                    <td><?= $e($r['date_fin']) ?></td>
++                </tr>
++            <?php endforeach; ?>
++            </tbody>
++        </table>
++    <?php endif; ?>
++
++    <h2>Incidents actifs</h2>
++    <?php if ($dashboard['open_incidents'] === []): ?>
++        <p>Aucun incident actif.</p>
++    <?php else: ?>
++        <table>
++            <thead><tr><th>N°</th><th>Titre</th><th>Machine</th><th>État</th><th>Bloquant</th></tr></thead>
++            <tbody>
++            <?php foreach ($dashboard['open_incidents'] as $i): ?>
++                <tr>
++                    <td><?= (int) $i['id_incident'] ?></td>
++                    <td><?= $e($i['titre']) ?></td>
++                    <td><?= $e($i['equipement_nom']) ?></td>
++                    <td><?= $e($i['statut']) ?></td>
++                    <td><?= (int) $i['est_bloquant'] === 1 ? 'Oui' : 'Non' ?></td>
++                </tr>
++            <?php endforeach; ?>
++            </tbody>
++        </table>
++    <?php endif; ?>
++
++    <h2>Machines hors service</h2>
++    <?php if ($dashboard['out_of_service_equipments'] === []): ?>
++        <p>Toutes les machines sont en service.</p>
++    <?php else: ?>
++        <ul>
++            <?php foreach ($dashboard['out_of_service_equipments'] as $m): ?>
++                <li><?= $e($m['nom']) ?> (<?= $e($m['localisation']) ?>)</li>
++            <?php endforeach; ?>
++        </ul>
++    <?php endif; ?>
++<?php endif; ?>
+ </body>
+ </html>
+diff --git a/files/backend/templates/home.php b/files/backend/templates/home.php
+index 0927810..3f0d1fa 100644
+--- a/files/backend/templates/home.php
++++ b/files/backend/templates/home.php
+@@ -1,7 +1,6 @@
+ <?php
+ /** @var array $equipment */
+ /** @var ?string $error */
+-/** @var string $csrf */
+ ?>
+ <!doctype html>
+ <html lang="fr">
+@@ -25,45 +24,21 @@
+     <a href="/">Accueil</a>
+     <a href="/api/health">API health</a>
+     <a href="/api/equipment">API equipment</a>
++    <a href="/login">Connexion</a>
+ </nav>
+ 
+-<h1>Starter Slim + Medoo</h1>
++<h1>Équipements de La Fabrique Commune</h1>
+ 
+ <p>
+     Cette page illustre une vue HTML alimentée par
+     <code>Route → Controller → Service → Repository → Medoo</code>.
+ </p>
+-<p><strong>Exemple de formation :</strong> aucune authentification n'est implémentée.
+-    N'exposez pas le POST public de cette démonstration sur Internet.</p>
+-
+ <?php if ($error !== null): ?>
+     <p class="error" role="alert">
+         <?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+     </p>
+ <?php endif; ?>
+ 
+-<h2>Ajouter un équipement</h2>
+-
+-<form method="post" action="/equipment">
+-    <input type="hidden" name="csrf"
+-            value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+-
+-    <label>
+-        Nom
+-        <input name="name" required maxlength="150">
+-    </label>
+-
+-    <label>
+-        Statut
+-        <select name="status">
+-            <option value="EN_SERVICE">En service</option>
+-            <option value="HORS_SERVICE">Hors service</option>
+-        </select>
+-    </label>
+-
+-    <button type="submit">Créer</button>
+-</form>
+-
+ <h2>Équipements</h2>
+ 
+ <table>
+diff --git a/files/backend/tests/bootstrap.php b/files/backend/tests/bootstrap.php
+new file mode 100644
+index 0000000..4897e02
+--- /dev/null
++++ b/files/backend/tests/bootstrap.php
+@@ -0,0 +1,23 @@
++<?php
++
++declare(strict_types=1);
++
++/**
++ * Connexion de test : même configuration que l'application (.env), aucun mot de passe en dur.
++ * Attention : ces tests s'exécutent sur la base du .env et y créent puis suppriment leurs propres lignes.
++ * Utiliser de préférence une base de test dédiée (DB_NAME dans un .env de test).
++ */
++$root = dirname(__DIR__);
++
++require_once $root . '/vendor/autoload.php';
++
++Dotenv\Dotenv::createImmutable($root)->safeLoad();
++
++$settings = require $root . '/config/settings.php';
++
++if (($settings['app']['env'] ?? 'prod') === 'prod') {
++    fwrite(STDERR, "Refus : les tests ne s'exécutent pas avec APP_ENV=prod.\n");
++    exit(1);
++}
++
++return App\Database\DatabaseFactory::create($settings['database']);
+diff --git a/files/backend/tests/test_catalogue_filtres.php b/files/backend/tests/test_catalogue_filtres.php
+index 4b2a4f2..00664f6 100644
+--- a/files/backend/tests/test_catalogue_filtres.php
++++ b/files/backend/tests/test_catalogue_filtres.php
+@@ -2,21 +2,10 @@
+ 
+ declare(strict_types=1);
+ 
+-require_once dirname(__DIR__) . '/vendor/autoload.php';
+-
+ use App\Repository\EquipmentRepository;
+ use App\Service\EquipmentService;
+-use Medoo\Medoo;
+-
+-$database = new Medoo([
+-    'type'     => 'mysql',
+-    'host'     => '127.0.0.1',
+-    'database' => 'bts_web',
+-    'username' => 'root',
+-    'password' => 'root',
+-    'charset'  => 'utf8mb4',
+-    'error'    => PDO::ERRMODE_EXCEPTION,
+-]);
++
++$database = require __DIR__ . '/bootstrap.php';
+ 
+ $repo    = new EquipmentRepository($database);
+ $service = new EquipmentService($repo);
+diff --git a/files/backend/tests/test_recette_mardi.php b/files/backend/tests/test_recette_mardi.php
+index aeb62e8..9d41758 100644
+--- a/files/backend/tests/test_recette_mardi.php
++++ b/files/backend/tests/test_recette_mardi.php
+@@ -2,8 +2,6 @@
+ 
+ declare(strict_types=1);
+ 
+-require_once dirname(__DIR__) . '/vendor/autoload.php';
+-
+ use App\Domain\ReservationRefusee;
+ use App\Repository\CreneauPrioritaireRepository;
+ use App\Repository\EquipmentRepository;
+@@ -11,17 +9,8 @@ use App\Repository\ReservationRepository;
+ use App\Service\EquipmentService;
+ use App\Service\ReservationService;
+ use App\Service\TechnicienDashboardService;
+-use Medoo\Medoo;
+-
+-$database = new Medoo([
+-    'type'     => 'mysql',
+-    'host'     => '127.0.0.1',
+-    'database' => 'bts_web',
+-    'username' => 'root',
+-    'password' => 'root',
+-    'charset'  => 'utf8mb4',
+-    'error'    => PDO::ERRMODE_EXCEPTION,
+-]);
++
++$database = require __DIR__ . '/bootstrap.php';
+ 
+ $equipmentRepo = new EquipmentRepository($database);
+ $equipmentService = new EquipmentService($equipmentRepo);
+@@ -88,8 +77,8 @@ try {
+     }
+     assertCase(
+         'Création réservation ordinaire',
+-        ($res1['statut'] ?? null) === 'CONFIRMEE',
+-        'statut=' . ($res1['statut'] ?? 'null'),
++        ($res1['status'] ?? null) === 'CONFIRMEE',
++        'status=' . ($res1['status'] ?? 'null'),
+         $passed,
+         $failed
+     );
+@@ -137,8 +126,8 @@ try {
+     }
+     assertCase(
+         'R1 créneau prioritaire ADHERENT -> DEMANDEE',
+-        ($resPrioAdherent['statut'] ?? null) === 'DEMANDEE',
+-        'statut=' . ($resPrioAdherent['statut'] ?? 'null'),
++        ($resPrioAdherent['status'] ?? null) === 'DEMANDEE',
++        'status=' . ($resPrioAdherent['status'] ?? 'null'),
+         $passed,
+         $failed
+     );
+@@ -149,8 +138,8 @@ try {
+     }
+     assertCase(
+         'R1 créneau prioritaire TECHNICIEN -> CONFIRMEE',
+-        ($resPrioTech['statut'] ?? null) === 'CONFIRMEE',
+-        'statut=' . ($resPrioTech['statut'] ?? 'null'),
++        ($resPrioTech['status'] ?? null) === 'CONFIRMEE',
++        'status=' . ($resPrioTech['status'] ?? 'null'),
+         $passed,
+         $failed
+     );
+diff --git a/files/backend/tests/test_reservation.php b/files/backend/tests/test_reservation.php
+index b739813..a88472e 100644
+--- a/files/backend/tests/test_reservation.php
++++ b/files/backend/tests/test_reservation.php
+@@ -2,24 +2,13 @@
+ 
+ declare(strict_types=1);
+ 
+-require_once dirname(__DIR__) . '/vendor/autoload.php';
+-
+ use App\Domain\ReservationRefusee;
+ use App\Repository\CreneauPrioritaireRepository;
+ use App\Repository\ReservationRepository;
+ use App\Service\ReservationService;
+-use Medoo\Medoo;
+ 
+ // 1. Connexion Medoo (adapte si tu as déjà un fichier de config/bootstrap)
+-$database = new Medoo([
+-    'type' => 'mysql',
+-    'host' => '127.0.0.1',
+-    'database' => 'bts_web',
+-    'username' => 'root',
+-    'password' => 'root',
+-    'charset' => 'utf8mb4',
+-    'error' => PDO::ERRMODE_EXCEPTION,
+-]);
++$database = require __DIR__ . '/bootstrap.php';
+ 
+ $reservationRepo = new ReservationRepository($database);
+ $creneauRepo = new CreneauPrioritaireRepository($database);
+@@ -27,8 +16,8 @@ $service = new ReservationService($reservationRepo, $creneauRepo);
+ 
+ // IDs existants dans ton jeu d'essai (à adapter si besoin)
+ $idEquipement = 1;
+-$idAdherent = 1;
+-$idTechnicien = 2;
++$idAdherent = 3;      // Camille Durand (ADHERENT) dans le jeu d'essai
++$idTechnicien = 2;    // Karim Benali (TECHNICIEN)
+ 
+ // Dates futures relatives à demain pour ne jamais tomber sur DATE_PASSEE
+ $demain = (new DateTimeImmutable('+1 day'))->format('Y-m-d');

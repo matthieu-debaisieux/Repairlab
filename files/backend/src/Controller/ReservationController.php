@@ -2,93 +2,102 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controller;
+namespace App\Controller;
 
 use App\Domain\ReservationRefusee;
+use App\Http\HttpInputException;
+use App\Http\JsonInput;
+use App\Http\JsonResponder;
 use App\Http\Session;
 use App\Service\ReservationService;
+use DateTimeImmutable;
 use InvalidArgumentException;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 final class ReservationController
 {
+    private const DATE_FORMATS = ['Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i'];
+
     public function __construct(
-        private readonly ReservationService $reservationService,
-        private readonly Session $session
-    ) {}
+        private ReservationService $reservations,
+        private Session $session
+    ) {
+    }
 
-    public function create(Request $request, Response $response): Response
-    {
-        $currentUser = $this->resolveUser($request);
-
-        if ($currentUser === null) {
-            return $this->json($response, [
-                'error' => 'Authentification requise.',
+    /** POST /api/reservations : { "equipmentId": 1, "debut": "...", "fin": "..." } */
+    public function create(
+        ServerRequestInterface $request,
+        ResponseInterface $response
+    ): ResponseInterface {
+        $user = $this->session->user();
+        if ($user === null) {
+            return JsonResponder::respond($response, [
+                'error' => 'UNAUTHENTICATED',
+                'message' => 'Connexion requise.',
             ], 401);
         }
 
-        $data = (array) ($request->getParsedBody() ?? []);
+        try {
+            $input = JsonInput::readObject($request);
+        } catch (HttpInputException $exception) {
+            return JsonResponder::respond($response, [
+                'error' => 'INVALID_REQUEST',
+                'message' => $exception->getMessage(),
+            ], $exception->status);
+        }
 
-        $idEquipement = isset($data['id_equipement']) ? filter_var($data['id_equipement'], FILTER_VALIDATE_INT) : false;
-        $dateDebut    = isset($data['date_debut']) && is_string($data['date_debut']) ? trim($data['date_debut']) : '';
-        $dateFin      = isset($data['date_fin']) && is_string($data['date_fin']) ? trim($data['date_fin']) : '';
+        $equipmentId = $input['equipmentId'] ?? null;
+        $equipmentId = (is_int($equipmentId) || (is_string($equipmentId) && ctype_digit($equipmentId)))
+            ? (int) $equipmentId
+            : 0;
+        $start = $this->parseDate($input['debut'] ?? null);
+        $end = $this->parseDate($input['fin'] ?? null);
 
-        if ($idEquipement === false || $idEquipement <= 0 || $dateDebut === '' || $dateFin === '') {
-            return $this->json($response, [
-                'error' => 'Les champs id_equipement, date_debut et date_fin sont requis.',
-                'code'  => 'DONNEES_INCOMPLETES',
+        if ($equipmentId <= 0 || $start === null || $end === null) {
+            return JsonResponder::respond($response, [
+                'error' => 'VALIDATION_ERROR',
+                'message' => 'equipmentId (entier), debut et fin (AAAA-MM-JJ HH:MM:SS) sont obligatoires.',
             ], 422);
         }
 
         try {
-            $reservation = $this->reservationService->creer(
-                idEquipement: (int) $idEquipement,
-                idUtilisateur: (int) ($currentUser['id'] ?? $currentUser['id_utilisateur'] ?? 0),
-                roleUtilisateur: (string) ($currentUser['role'] ?? ''),
-                dateDebut: $dateDebut,
-                dateFin: $dateFin
+            $reservation = $this->reservations->creer(
+                idEquipement: $equipmentId,
+                idUtilisateur: (int) $user['id'],
+                roleUtilisateur: (string) $user['role'],
+                dateDebut: $start,
+                dateFin: $end
             );
-
-            return $this->json($response, [
-                'data' => $reservation,
-            ], 201);
-        } catch (ReservationRefusee $e) {
-            return $this->json($response, [
-                'error'  => $e->getMessage(),
-                'reason' => $e->reason,
-            ], $e->httpStatus);
-        } catch (InvalidArgumentException $e) {
-            return $this->json($response, [
-                'error' => $e->getMessage(),
-                'code'  => 'DONNEES_INVALIDES',
+        } catch (ReservationRefusee $refus) {
+            return JsonResponder::respond($response, [
+                'error' => $refus->reason,
+                'message' => $refus->getMessage(),
+            ], $refus->httpStatus);
+        } catch (InvalidArgumentException $exception) {
+            return JsonResponder::respond($response, [
+                'error' => 'VALIDATION_ERROR',
+                'message' => $exception->getMessage(),
             ], 422);
         }
+
+        return JsonResponder::respond($response, $reservation, 201);
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function resolveUser(Request $request): ?array
+    /** Accepte uniquement une date réelle et complète ; retourne le format SQL, ou null. */
+    private function parseDate(mixed $value): ?string
     {
-        $sessionUser = $this->session->user();
-        if (is_array($sessionUser)) {
-            return $sessionUser;
+        if (!is_string($value)) {
+            return null;
         }
 
-        $attrUser = $request->getAttribute('user');
-        return is_array($attrUser) ? $attrUser : null;
-    }
+        foreach (self::DATE_FORMATS as $format) {
+            $date = DateTimeImmutable::createFromFormat('!' . $format, $value);
+            if ($date !== false && $date->format($format) === $value) {
+                return $date->format('Y-m-d H:i:s');
+            }
+        }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function json(Response $response, array $payload, int $status): Response
-    {
-        $response->getBody()->write((string) json_encode($payload, JSON_UNESCAPED_UNICODE));
-
-        return $response
-            ->withHeader('Content-Type', 'application/json; charset=utf-8')
-            ->withStatus($status);
+        return null;
     }
 }

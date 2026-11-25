@@ -2,24 +2,13 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
 use App\Domain\ReservationRefusee;
 use App\Repository\CreneauPrioritaireRepository;
 use App\Repository\ReservationRepository;
 use App\Service\ReservationService;
-use Medoo\Medoo;
 
 // 1. Connexion Medoo (adapte si tu as déjà un fichier de config/bootstrap)
-$database = new Medoo([
-    'type' => 'mysql',
-    'host' => '127.0.0.1',
-    'database' => 'bts_web',
-    'username' => 'root',
-    'password' => 'root',
-    'charset' => 'utf8mb4',
-    'error' => PDO::ERRMODE_EXCEPTION,
-]);
+$database = require __DIR__ . '/bootstrap.php';
 
 $reservationRepo = new ReservationRepository($database);
 $creneauRepo = new CreneauPrioritaireRepository($database);
@@ -27,8 +16,8 @@ $service = new ReservationService($reservationRepo, $creneauRepo);
 
 // IDs existants dans ton jeu d'essai (à adapter si besoin)
 $idEquipement = 1;
-$idAdherent = 1;
-$idTechnicien = 2;
+$idAdherent = 3;      // Camille Durand (ADHERENT) dans le jeu d'essai
+$idTechnicien = 2;    // Karim Benali (TECHNICIEN)
 
 // Dates futures relatives à demain pour ne jamais tomber sur DATE_PASSEE
 $demain = (new DateTimeImmutable('+1 day'))->format('Y-m-d');

@@ -80,21 +80,4 @@ final class EquipmentRepository
 
         return is_array($row) ? $row : null;
     }
-
-    public function create(string $name, string $status): array
-    {
-        $this->database->insert('EQUIPEMENT', [
-            'nom' => $name,
-            'statut_technique' => $status,
-            'visible_public' => 1,
-        ]);
-
-        $id = (int) $this->database->id();
-
-        return $this->find($id) ?? [
-            'id' => $id,
-            'name' => $name,
-            'status' => $status,
-        ];
-    }
 }

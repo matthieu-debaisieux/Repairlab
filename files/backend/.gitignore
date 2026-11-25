@@ -4,4 +4,3 @@
 /.vscode/
 .DS_Store
 /storage/logs/*.log
-/tests/

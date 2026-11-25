@@ -2,21 +2,10 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
 use App\Repository\EquipmentRepository;
 use App\Service\EquipmentService;
-use Medoo\Medoo;
 
-$database = new Medoo([
-    'type'     => 'mysql',
-    'host'     => '127.0.0.1',
-    'database' => 'bts_web',
-    'username' => 'root',
-    'password' => 'root',
-    'charset'  => 'utf8mb4',
-    'error'    => PDO::ERRMODE_EXCEPTION,
-]);
+$database = require __DIR__ . '/bootstrap.php';
 
 $repo    = new EquipmentRepository($database);
 $service = new EquipmentService($repo);

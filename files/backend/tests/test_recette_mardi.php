@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
 use App\Domain\ReservationRefusee;
 use App\Repository\CreneauPrioritaireRepository;
 use App\Repository\EquipmentRepository;
@@ -11,17 +9,8 @@ use App\Repository\ReservationRepository;
 use App\Service\EquipmentService;
 use App\Service\ReservationService;
 use App\Service\TechnicienDashboardService;
-use Medoo\Medoo;
 
-$database = new Medoo([
-    'type'     => 'mysql',
-    'host'     => '127.0.0.1',
-    'database' => 'bts_web',
-    'username' => 'root',
-    'password' => 'root',
-    'charset'  => 'utf8mb4',
-    'error'    => PDO::ERRMODE_EXCEPTION,
-]);
+$database = require __DIR__ . '/bootstrap.php';
 
 $equipmentRepo = new EquipmentRepository($database);
 $equipmentService = new EquipmentService($equipmentRepo);
@@ -88,8 +77,8 @@ try {
     }
     assertCase(
         'Création réservation ordinaire',
-        ($res1['statut'] ?? null) === 'CONFIRMEE',
-        'statut=' . ($res1['statut'] ?? 'null'),
+        ($res1['status'] ?? null) === 'CONFIRMEE',
+        'status=' . ($res1['status'] ?? 'null'),
         $passed,
         $failed
     );
@@ -137,8 +126,8 @@ try {
     }
     assertCase(
         'R1 créneau prioritaire ADHERENT -> DEMANDEE',
-        ($resPrioAdherent['statut'] ?? null) === 'DEMANDEE',
-        'statut=' . ($resPrioAdherent['statut'] ?? 'null'),
+        ($resPrioAdherent['status'] ?? null) === 'DEMANDEE',
+        'status=' . ($resPrioAdherent['status'] ?? 'null'),
         $passed,
         $failed
     );
@@ -149,8 +138,8 @@ try {
     }
     assertCase(
         'R1 créneau prioritaire TECHNICIEN -> CONFIRMEE',
-        ($resPrioTech['statut'] ?? null) === 'CONFIRMEE',
-        'statut=' . ($resPrioTech['statut'] ?? 'null'),
+        ($resPrioTech['status'] ?? null) === 'CONFIRMEE',
+        'status=' . ($resPrioTech['status'] ?? 'null'),
         $passed,
         $failed
     );

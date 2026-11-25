@@ -1,7 +1,6 @@
 <?php
 /** @var array $equipment */
 /** @var ?string $error */
-/** @var string $csrf */
 ?>
 <!doctype html>
 <html lang="fr">
@@ -25,44 +24,20 @@
     <a href="/">Accueil</a>
     <a href="/api/health">API health</a>
     <a href="/api/equipment">API equipment</a>
+    <a href="/login">Connexion</a>
 </nav>
 
-<h1>Starter Slim + Medoo</h1>
+<h1>Équipements de La Fabrique Commune</h1>
 
 <p>
     Cette page illustre une vue HTML alimentée par
     <code>Route → Controller → Service → Repository → Medoo</code>.
 </p>
-<p><strong>Exemple de formation :</strong> aucune authentification n'est implémentée.
-    N'exposez pas le POST public de cette démonstration sur Internet.</p>
-
 <?php if ($error !== null): ?>
     <p class="error" role="alert">
         <?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
     </p>
 <?php endif; ?>
-
-<h2>Ajouter un équipement</h2>
-
-<form method="post" action="/equipment">
-    <input type="hidden" name="csrf"
-            value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
-
-    <label>
-        Nom
-        <input name="name" required maxlength="150">
-    </label>
-
-    <label>
-        Statut
-        <select name="status">
-            <option value="EN_SERVICE">En service</option>
-            <option value="HORS_SERVICE">Hors service</option>
-        </select>
-    </label>
-
-    <button type="submit">Créer</button>
-</form>
 
 <h2>Équipements</h2>
 

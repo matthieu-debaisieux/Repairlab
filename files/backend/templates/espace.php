@@ -2,35 +2,100 @@
 /** @var string $title */
 /** @var array $user */
 /** @var string $csrf */
+/** @var ?array $dashboard */
+$dashboard = $dashboard ?? null;
+$e = static fn (mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
 ?>
 <!doctype html>
 <html lang="fr">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></title>
+    <title><?= $e($title) ?></title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-        form { display: grid; gap: .75rem; padding: 1rem; border: 1px solid #ccc; border-radius: .5rem; }
-        input, button { padding: .65rem; font: inherit; }
-        .error { padding: .75rem; border: 1px solid currentColor; }
+        body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+        form.inline { display: inline; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+        th, td { border-bottom: 1px solid #ccc; padding: .4rem .5rem; text-align: left; }
+        .kpis { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+        .kpi { border: 1px solid #ccc; border-radius: .5rem; padding: .75rem 1rem; }
+        .kpi strong { display: block; font-size: 1.6rem; }
     </style>
 </head>
 <body>
-<h1><?= htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h1>
+<h1><?= $e($title) ?></h1>
 
 <p>
-    Connecté en tant que
-    <strong><?= htmlspecialchars($user['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
-    (<?= htmlspecialchars($user['role'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>).
+    Connecté en tant que <strong><?= $e($user['name']) ?></strong> (<?= $e($user['role']) ?>).
 </p>
 
-<form method="post" action="/logout">
-    <input type="hidden" name="csrf"
-           value="<?= htmlspecialchars($csrf, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+<form class="inline" method="post" action="/logout">
+    <input type="hidden" name="csrf" value="<?= $e($csrf) ?>">
     <button type="submit">Se déconnecter</button>
 </form>
 
-<p><a href="/">Catalogue</a> · <a href="/technicien">Espace technicien</a></p>
+<p>
+    <a href="/">Catalogue</a>
+    <?php if ($isStaff): ?> · <a href="/technicien">Tableau de bord technicien</a><?php endif; ?>
+</p>
+
+<?php if ($dashboard !== null): ?>
+    <div class="kpis">
+        <div class="kpi"><strong><?= (int) $dashboard['kpis']['pending_reservations_count'] ?></strong>Demandes en attente</div>
+        <div class="kpi"><strong><?= (int) $dashboard['kpis']['open_incidents_count'] ?></strong>Incidents actifs</div>
+        <div class="kpi"><strong><?= (int) $dashboard['kpis']['out_of_service_count'] ?></strong>Machines hors service</div>
+    </div>
+
+    <h2>Demandes en attente de validation</h2>
+    <?php if ($dashboard['pending_reservations'] === []): ?>
+        <p>Aucune demande en attente.</p>
+    <?php else: ?>
+        <table>
+            <thead><tr><th>Machine</th><th>Adhérent</th><th>Début</th><th>Fin</th></tr></thead>
+            <tbody>
+            <?php foreach ($dashboard['pending_reservations'] as $r): ?>
+                <tr>
+                    <td><?= $e($r['equipement_nom']) ?></td>
+                    <td><?= $e($r['utilisateur_nom']) ?></td>
+                    <td><?= $e($r['date_debut']) ?></td>
+                    <td><?= $e($r['date_fin']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <h2>Incidents actifs</h2>
+    <?php if ($dashboard['open_incidents'] === []): ?>
+        <p>Aucun incident actif.</p>
+    <?php else: ?>
+        <table>
+            <thead><tr><th>N°</th><th>Titre</th><th>Machine</th><th>État</th><th>Bloquant</th></tr></thead>
+            <tbody>
+            <?php foreach ($dashboard['open_incidents'] as $i): ?>
+                <tr>
+                    <td><?= (int) $i['id_incident'] ?></td>
+                    <td><?= $e($i['titre']) ?></td>
+                    <td><?= $e($i['equipement_nom']) ?></td>
+                    <td><?= $e($i['statut']) ?></td>
+                    <td><?= (int) $i['est_bloquant'] === 1 ? 'Oui' : 'Non' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <h2>Machines hors service</h2>
+    <?php if ($dashboard['out_of_service_equipments'] === []): ?>
+        <p>Toutes les machines sont en service.</p>
+    <?php else: ?>
+        <ul>
+            <?php foreach ($dashboard['out_of_service_equipments'] as $m): ?>
+                <li><?= $e($m['nom']) ?> (<?= $e($m['localisation']) ?>)</li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+<?php endif; ?>
 </body>
 </html>

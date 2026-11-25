@@ -5,10 +5,10 @@ Version de travail du 24 novembre 2026. Les routes et les codes sont à ajuster 
 ## Conventions
 
 - Format JSON, encodage UTF-8, préfixe `/api`.
-- Authentification : la même session que le site. Sans session, les routes protégées renvoient 401.
+- Authentification : la même session que le site. Les écritures exigent `Content-Type: application/json` et, si l'en-tête `Origin` est présent, le même site que l'API (protection CSRF). Sans session, les routes protégées renvoient 401.
 - Les règles métier sont identiques pour le site et pour l'API : elles vivent dans les services, jamais dans les vues ni dans le navigateur.
 - Dates au format ISO 8601 (`2026-11-26T14:00:00`).
-- Erreur : `{"erreur": {"code": "INCIDENT_BLOQUANT", "message": "Réservation impossible : un incident bloquant est ouvert."}}`
+- Erreur : `{"error": "INCIDENT_BLOQUANT", "message": "Réservation impossible : un incident bloquant est ouvert."}`
 
 ## Codes de statut
 
@@ -52,7 +52,7 @@ Disponibilité (R9) :
 Refus d'une transition (R6) :
 
 ```json
-{"erreur": {"code": "TRANSITION_INTERDITE", "message": "Vous ne pouvez pas revenir en arrière : rouvrez un ticket."}}
+{"error": "TRANSITION_INTERDITE", "message": "Vous ne pouvez pas revenir en arrière : rouvrez un ticket."}
 ```
 
 ## Points à valider

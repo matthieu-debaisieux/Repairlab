@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Http\Session;
 use App\Http\ViewRenderer;
 use App\Service\AuthService;
+use App\Service\TechnicienDashboardService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -15,7 +16,8 @@ final class AuthController
     public function __construct(
         private AuthService $auth,
         private Session $session,
-        private ViewRenderer $renderer
+        private ViewRenderer $renderer,
+        private TechnicienDashboardService $dashboardService
     ) {
     }
 
@@ -86,18 +88,16 @@ final class AuthController
     }
 
     public function technicien(
-    ServerRequestInterface $request,
-    ResponseInterface $response
+        ServerRequestInterface $request,
+        ResponseInterface $response
     ): ResponseInterface {
-    $dashboard = $this->dashboardService->getDashboardData();
-
-    return $this->renderer->render($response, 'espace', [
-        'title' => 'Tableau de bord technicien',
-        'user' => $this->session->user(),
-        'csrf' => $this->session->csrfToken(),
-        'dashboard' => $dashboard,
-    ]);
-}
+        return $this->renderer->render($response, 'espace', [
+            'title' => 'Tableau de bord technicien',
+            'user' => $this->session->user(),
+            'csrf' => $this->session->csrfToken(),
+            'dashboard' => $this->dashboardService->getDashboardData(),
+        ]);
+    }
 
     private function renderLogin(
         ResponseInterface $response,

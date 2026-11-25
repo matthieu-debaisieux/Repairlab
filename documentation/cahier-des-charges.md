@@ -148,7 +148,7 @@ Aucune table de qualification, de stock de pièces ou de pointage n'est créée 
 
 ### Exigences
 
-- MCD Merise, puis MLD avec clés primaires et étrangères, puis scripts SQL ordonnés dans `sql/`.
+- MCD Merise, puis MLD avec clés primaires et étrangères, puis scripts SQL ordonnés dans `files/backend/database/`.
 - Contraintes d'intégrité (clés, `CHECK`, `UNIQUE`), requêtes paramétrées, jeu d'essai cohérent.
 - Aucune donnée personnelle réelle dans les jeux d'essai.
 - Les informations calculables ne sont pas dupliquées sans justification écrite.

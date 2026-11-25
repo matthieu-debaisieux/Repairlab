@@ -1,7 +1,18 @@
-/vendor/
-/.env
-/.idea/
-/.vscode/
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+
+# Dépendances
+vendor/
+node_modules/
+
+# Éditeurs et système
+.idea/
+.vscode/
 .DS_Store
-/storage/logs/*.log
-/tests/
+Thumbs.db
+
+# Journaux
+*.log
+storage/logs/*.log
