@@ -41,6 +41,27 @@
     </p>
 <?php endif; ?>
 
+<?php
+/** @var array $equipment */
+/** @var ?string $error */
+/** @var ?string $flashError */
+/** @var ?string $flashSuccess */
+$flashError = $flashError ?? null;
+$flashSuccess = $flashSuccess ?? null;
+?>
+
+<?php if (!empty($flashError)): ?>
+    <p class="error" role="alert">
+        <?= htmlspecialchars((string) $flashError, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+    </p>
+<?php endif; ?>
+
+<?php if (!empty($flashSuccess)): ?>
+    <p class="success" role="status">
+        <?= htmlspecialchars((string) $flashSuccess, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+    </p>
+<?php endif; ?>
+
 <h2>Équipements</h2>
 
 <table>

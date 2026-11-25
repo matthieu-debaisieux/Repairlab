@@ -35,8 +35,10 @@ $renderer = new ViewRenderer($root . '/templates');
 
 $equipmentController = new EquipmentController(
     new EquipmentService(new EquipmentRepository($database)),
-    $renderer
+    $renderer,
+    $session
 );
+
 $authController = new AuthController(
     new AuthService(new UserRepository($database)),
     $session,
@@ -47,6 +49,7 @@ $authController = new AuthController(
         new CreneauPrioritaireRepository($database)
     )
 );
+
 $reservationController = new ReservationController(
     new ReservationService(
         new ReservationRepository($database),
@@ -64,7 +67,9 @@ $app->addErrorMiddleware(
 );
 
 (require $root . '/routes/web.php')($app, $equipmentController, $reservationController, $session);
+
 (require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $session);
+
 (require $root . '/routes/auth.php')($app, $authController, $session);
 
 $app->run();

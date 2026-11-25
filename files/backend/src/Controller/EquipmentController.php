@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Http\JsonResponder;
+use App\Http\Session;
 use App\Http\ViewRenderer;
 use App\Service\EquipmentService;
 use InvalidArgumentException;
@@ -15,7 +16,8 @@ final class EquipmentController
 {
     public function __construct(
         private EquipmentService $service,
-        private ViewRenderer $renderer
+        private ViewRenderer $renderer,
+        private Session $session
     ) {
     }
 
@@ -34,6 +36,9 @@ final class EquipmentController
             $equipment = $this->service->list([]);
         }
 
+        $flashError = $this->session->pullFlash('error');
+        $flashSuccess = $this->session->pullFlash('success');
+
         return $this->renderer->render($response, 'home', [
             'equipment' => $equipment,
             'filters' => [
@@ -42,6 +47,8 @@ final class EquipmentController
                 'status' => is_string($filters['status'] ?? null) ? strtoupper(trim($filters['status'])) : '',
             ],
             'error' => $error,
+            'flashError' => $flashError,
+            'flashSuccess' => $flashSuccess,
         ], $error !== null ? 422 : 200);
     }
 
