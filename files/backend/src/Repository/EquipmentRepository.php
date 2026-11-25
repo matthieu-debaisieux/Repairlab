@@ -80,4 +80,19 @@ final class EquipmentRepository
 
         return is_array($row) ? $row : null;
     }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function categories(): array
+    {
+        return $this->database->select('CATEGORIE_EQUIPEMENT', [
+            'id_categorie',
+            'libelle',
+        ], [
+            'ORDER' => [
+                'libelle' => 'ASC',
+            ],
+        ]);
+    }
 }

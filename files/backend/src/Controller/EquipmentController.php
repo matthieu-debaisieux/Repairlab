@@ -38,9 +38,13 @@ final class EquipmentController
 
         $flashError = $this->session->pullFlash('error');
         $flashSuccess = $this->session->pullFlash('success');
+        $categories = $this->service->categories();
+
+        $statusCode = $error !== null ? 422 : 200;
 
         return $this->renderer->render($response, 'home', [
             'equipment' => $equipment,
+            'categories' => $categories,
             'filters' => [
                 'q' => is_string($filters['q'] ?? null) ? trim($filters['q']) : '',
                 'category' => is_string($filters['category'] ?? null) ? trim($filters['category']) : '',
@@ -49,7 +53,7 @@ final class EquipmentController
             'error' => $error,
             'flashError' => $flashError,
             'flashSuccess' => $flashSuccess,
-        ], $error !== null ? 422 : 200);
+        ], $statusCode);
     }
 
     public function apiIndex(

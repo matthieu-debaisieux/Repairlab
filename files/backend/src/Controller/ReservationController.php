@@ -44,6 +44,8 @@ final class ReservationController
         $userId = (int) ($user['id'] ?? $user['id_utilisateur'] ?? 0);
         $role = (string) ($user['role'] ?? '');
 
+        $isApiRequest = str_starts_with($request->getUri()->getPath(), '/api/');
+
         if ($this->wantsJson($request)) {
             try {
                 $input = JsonInput::readObject($request);
@@ -55,6 +57,11 @@ final class ReservationController
             }
         } else {
             $input = (array) ($request->getParsedBody() ?? []);
+        }
+
+        if (!$isApiRequest && !$this->isValidCsrf($input['csrf'] ?? null)) {
+            $this->session->flash('error', 'Requête refusée : jeton CSRF absent ou invalide.');
+            return $this->redirect($response, '/equipements');
         }
 
         $equipmentId = $input['equipmentId'] ?? $input['id_equipement'] ?? null;

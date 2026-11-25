@@ -54,6 +54,14 @@ final class EquipmentService
         ]);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function categories(): array
+    {
+        return $this->repository->categories();
+    }
+
     public function get(int $id): ?array
     {
         return $this->repository->find($id);

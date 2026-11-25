@@ -1,54 +1,58 @@
 <?php
-/** @var array $equipment */
+/** @var array<int, array<string, mixed>> $equipment */
+/** @var array{q?: string, category?: string, status?: string} $filters */
+/** @var array<int, array<string, mixed>> $categories */
 /** @var ?string $error */
+/** @var ?string $flashError */
+/** @var ?string $flashSuccess */
+
+$filters = $filters ?? ['q' => '', 'category' => '', 'status' => ''];
+$categories = $categories ?? [];
+$error = $error ?? null;
+$flashError = $flashError ?? null;
+$flashSuccess = $flashSuccess ?? null;
+$qValue = (string) ($filters['q'] ?? '');
+$categoryValue = (string) ($filters['category'] ?? '');
+$statusValue = (string) ($filters['status'] ?? '');
 ?>
+
+
 <!doctype html>
 <html lang="fr">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Starter Slim + Medoo</title>
+    <title>Catalogue — La Fabrique Commune</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-        nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        form { display: grid; gap: .75rem; max-width: 420px; padding: 1rem; border: 1px solid #ccc; border-radius: .5rem; }
-        input, select, button { padding: .65rem; font: inherit; }
+        nav { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+        form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid #ccc; border-radius: .5rem; margin-bottom: 1.5rem; }
+        form.filters label { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; }
+        input, select, button, a.btn { padding: .6rem .8rem; font: inherit; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         th, td { border-bottom: 1px solid #ddd; padding: .65rem; text-align: left; }
-        .error { padding: .75rem; border: 1px solid currentColor; }
-        code { background: #f2f2f2; padding: .15rem .35rem; }
+        .error { padding: .75rem; border: 1px solid #b91c1c; color: #991b1b; background: #fef2f2; border-radius: .375rem; }
+        .success { padding: .75rem; border: 1px solid #15803d; color: #166534; background: #f0fdf4; border-radius: .375rem; }
+        .badge-hs { color: #991b1b; font-weight: 600; }
+        .badge-ok { color: #166534; font-weight: 600; }
     </style>
 </head>
 <body>
 <nav>
     <a href="/">Accueil</a>
-    <a href="/api/health">API health</a>
-    <a href="/api/equipment">API equipment</a>
+    <a href="/equipements">Catalogue</a>
     <a href="/login">Connexion</a>
     <a href="/mon-espace">Espace personnel</a>
     <a href="/technicien">Tableau de bord technicien</a>
 </nav>
 
-<h1>Équipements de La Fabrique Commune</h1>
+<h1>Catalogue des équipements — La Fabrique Commune</h1>
 
-<p>
-    Cette page illustre une vue HTML alimentée par
-    <code>Route → Controller → Service → Repository → Medoo</code>.
-</p>
 <?php if ($error !== null): ?>
     <p class="error" role="alert">
         <?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
     </p>
 <?php endif; ?>
-
-<?php
-/** @var array $equipment */
-/** @var ?string $error */
-/** @var ?string $flashError */
-/** @var ?string $flashSuccess */
-$flashError = $flashError ?? null;
-$flashSuccess = $flashSuccess ?? null;
-?>
 
 <?php if (!empty($flashError)): ?>
     <p class="error" role="alert">
@@ -62,20 +66,76 @@ $flashSuccess = $flashSuccess ?? null;
     </p>
 <?php endif; ?>
 
-<h2>Équipements</h2>
+<form class="filters" method="get" action="/equipements">
+    <label>
+        Recherche (nom, lieu)
+        <input type="search" name="q" value="<?= htmlspecialchars($qValue, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" placeholder="Ex. Prusa, Découpe...">
+    </label>
 
-<table>
-    <thead><tr><th>ID</th><th>Nom</th><th>Statut</th><th>Localisation</th></tr></thead>
-    <tbody>
-    <?php foreach ($equipment as $item): ?>
+    <label>
+        Catégorie
+        <select name="category">
+            <option value="">Toutes</option>
+            <?php foreach ($categories as $cat): ?>
+                <?php
+                $catId = (string) ($cat['id_categorie'] ?? $cat['id'] ?? '');
+                $catLabel = (string) ($cat['libelle'] ?? $cat['name'] ?? '');
+                ?>
+                <option value="<?= htmlspecialchars($catId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
+                    <?= $categoryValue === $catId ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($catLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </label>
+
+    <label>
+        Statut technique
+        <select name="status">
+            <option value="">Tous</option>
+            <option value="EN_SERVICE" <?= $statusValue === 'EN_SERVICE' ? 'selected' : '' ?>>EN_SERVICE</option>
+            <option value="HORS_SERVICE" <?= $statusValue === 'HORS_SERVICE' ? 'selected' : '' ?>>HORS_SERVICE</option>
+        </select>
+    </label>
+
+    <button type="submit">Filtrer</button>
+    <a class="btn" href="/equipements">Réinitialiser</a>
+</form>
+
+<?php if (empty($equipment)): ?>
+    <p>Aucun équipement ne correspond aux critères sélectionnés.</p>
+<?php else: ?>
+    <table>
+        <thead>
         <tr>
-            <td><?= (int) $item['id'] ?></td>
-            <td><?= htmlspecialchars((string) $item['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars((string) $item['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars((string) $item['localisation'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
+            <th>Nom</th>
+            <th>Catégorie</th>
+            <th>Statut</th>
+            <th>Localisation</th>
+            <th>Action</th>
         </tr>
-    <?php endforeach; ?>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+        <?php foreach ($equipment as $item): ?>
+            <?php
+            $id = (int) $item['id'];
+            $equipmentStatus = (string) ($item['status'] ?? '');
+            $isHs = strtoupper($equipmentStatus) === 'HORS_SERVICE';
+            ?>
+            <tr>
+                <td><?= htmlspecialchars((string) ($item['name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars((string) ($item['category'] ?? '—'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
+                <td>
+                    <span class="<?= $isHs ? 'badge-hs' : 'badge-ok' ?>">
+                        <?= htmlspecialchars($equipmentStatus, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+                    </span>
+                </td>
+                <td><?= htmlspecialchars((string) ($item['localisation'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></td>
+                <td><a href="/equipements/<?= $id ?>">Voir / Réserver</a></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+<?php endif; ?>
 </body>
 </html>
