@@ -117,4 +117,4 @@ composer test:db    # catalogue et réservations ; utilise la base du .env, y cr
 
 ## Auteur
 
-[Ton nom] — BTS SIO SLAM.
+Debaisieux Matthieu — BTS SIO SLAM.

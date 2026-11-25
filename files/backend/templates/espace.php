@@ -40,6 +40,14 @@ $isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
     <?php if ($isStaff): ?> · <a href="/technicien">Tableau de bord technicien</a><?php endif; ?>
 </p>
 
+<?php if (!empty($flashError)): ?>
+    <p class="error" role="alert"><?= $e($flashError) ?></p>
+<?php endif; ?>
+
+<?php if (!empty($flashSuccess)): ?>
+    <p class="success" role="status"><?= $e($flashSuccess) ?></p>
+<?php endif; ?>
+
 <?php if ($dashboard !== null): ?>
     <div class="kpis">
         <div class="kpi"><strong><?= (int) $dashboard['kpis']['pending_reservations_count'] ?></strong>Demandes en attente</div>
@@ -47,19 +55,76 @@ $isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
         <div class="kpi"><strong><?= (int) $dashboard['kpis']['out_of_service_count'] ?></strong>Machines hors service</div>
     </div>
 
+    <?php $myReservations = $myReservations ?? []; ?>
+    <h2>Mes réservations</h2>
+    <?php if ($myReservations === []): ?>
+        <p>Vous n'avez aucune réservation enregistrée.</p>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Machine</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($myReservations as $resa): ?>
+                <?php
+                $idResa = (int) ($resa['id_reservation'] ?? 0);
+                $statut = (string) ($resa['statut'] ?? '');
+                $peutAnnuler = in_array($statut, ['DEMANDEE', 'CONFIRMEE'], true);
+                ?>
+                <tr>
+                    <td><?= $e($resa['equipement_nom'] ?? '') ?></td>
+                    <td><?= $e($resa['date_debut'] ?? '') ?></td>
+                    <td><?= $e($resa['date_fin'] ?? '') ?></td>
+                    <td><?= $e($statut) ?></td>
+                    <td>
+                        <?php if ($peutAnnuler): ?>
+                            <form class="inline" method="post" action="/reservations/<?= $idResa ?>/annuler">
+                                <input type="hidden" name="csrf" value="<?= $e($csrf) ?>">
+                                <button type="submit">Annuler</button>
+                            </form>
+                        <?php else: ?>
+                            —
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
     <h2>Demandes en attente de validation</h2>
     <?php if ($dashboard['pending_reservations'] === []): ?>
         <p>Aucune demande en attente.</p>
     <?php else: ?>
         <table>
-            <thead><tr><th>Machine</th><th>Adhérent</th><th>Début</th><th>Fin</th></tr></thead>
+            <thead><tr>
+                <th>Machine</th>
+                <th>Adhérent</th>
+                <th>Début</th>
+                <th>Fin</th>
+            </tr></thead>
             <tbody>
             <?php foreach ($dashboard['pending_reservations'] as $r): ?>
+                <?php $idResa = (int) ($r['id_reservation'] ?? 0); ?>
                 <tr>
                     <td><?= $e($r['equipement_nom']) ?></td>
                     <td><?= $e($r['utilisateur_nom']) ?></td>
                     <td><?= $e($r['date_debut']) ?></td>
                     <td><?= $e($r['date_fin']) ?></td>
+                    <?php if ($isStaff): ?>
+                        <td>
+                            <form class="inline" method="post" action="/technicien/reservations/<?= $idResa ?>/confirmer">
+                                <input type="hidden" name="csrf" value="<?= $e($csrf) ?>">
+                                <button type="submit">Confirmer</button>
+                            </form>
+                        </td>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
             </tbody>

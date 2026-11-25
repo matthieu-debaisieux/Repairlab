@@ -41,7 +41,11 @@ $authController = new AuthController(
     new AuthService(new UserRepository($database)),
     $session,
     $renderer,
-    new TechnicienDashboardService($database)
+    new TechnicienDashboardService($database),
+    new ReservationService(
+        new ReservationRepository($database),
+        new CreneauPrioritaireRepository($database)
+    )
 );
 $reservationController = new ReservationController(
     new ReservationService(
@@ -59,7 +63,7 @@ $app->addErrorMiddleware(
     true
 );
 
-(require $root . '/routes/web.php')($app, $equipmentController);
+(require $root . '/routes/web.php')($app, $equipmentController, $reservationController, $session);
 (require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $session);
 (require $root . '/routes/auth.php')($app, $authController, $session);
 

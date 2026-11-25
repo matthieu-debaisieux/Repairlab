@@ -12,10 +12,10 @@ CREATE PROCEDURE sp_creer_reservation(
     OUT p_id_reservation INT UNSIGNED
 )
 BEGIN
-    DECLARE v_existe   INT DEFAULT 0;
-    DECLARE v_conflits INT DEFAULT 0;
+    DECLARE v_existe          INT DEFAULT 0;
+    DECLARE v_conflits        INT DEFAULT 0;
+    DECLARE v_panne_bloquante INT DEFAULT 0;
 
-    -- Si une erreur survient, on annule tout puis on la relance à PHP.
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -45,6 +45,17 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'EQUIPEMENT_INCONNU';
     END IF;
 
+    SELECT COUNT(*) INTO v_panne_bloquante
+    FROM INCIDENT
+    WHERE id_equipement = p_equipement
+        AND est_bloquant = 1
+        AND statut IN ('OUVERT', 'EN_COURS')
+    FOR UPDATE;
+
+    IF v_panne_bloquante > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PANNE_BLOQUANTE';
+    END IF;
+
     SELECT COUNT(*) INTO v_conflits
     FROM RESERVATION
     WHERE id_equipement = p_equipement
@@ -54,7 +65,7 @@ BEGIN
     FOR UPDATE;
 
     IF v_conflits > 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CONFLIT_CRENEAU';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CRENEAU_OCCUPE';
     END IF;
 
     INSERT INTO RESERVATION (

@@ -25,6 +25,8 @@
     <a href="/api/health">API health</a>
     <a href="/api/equipment">API equipment</a>
     <a href="/login">Connexion</a>
+    <a href="/mon-espace">Espace personnel</a>
+    <a href="/technicien">Tableau de bord technicien</a>
 </nav>
 
 <h1>Équipements de La Fabrique Commune</h1>

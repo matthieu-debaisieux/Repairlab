@@ -10,6 +10,7 @@ use App\Service\AuthService;
 use App\Service\TechnicienDashboardService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use App\Service\ReservationService;
 
 final class AuthController
 {
@@ -17,7 +18,8 @@ final class AuthController
         private AuthService $auth,
         private Session $session,
         private ViewRenderer $renderer,
-        private TechnicienDashboardService $dashboardService
+        private TechnicienDashboardService $dashboardService,
+        private ReservationService $reservationService,
     ) {
     }
 
@@ -80,10 +82,16 @@ final class AuthController
         ServerRequestInterface $request,
         ResponseInterface $response
     ): ResponseInterface {
+        $user = $this->session->user();
+        $userId = is_array($user) ? (int) ($user['id'] ?? $user['id_utilisateur'] ?? 0) : 0;
+
         return $this->renderer->render($response, 'espace', [
             'title' => 'Mon espace',
-            'user' => $this->session->user(),
+            'user' => $user,
             'csrf' => $this->session->csrfToken(),
+            'myReservations' => $userId > 0 ? $this->reservationService->listerParUtilisateur($userId) : [],
+            'flashError' => $this->session->pullflash('error'),
+            'flashSuccess' => $this->session->pullflash('success'),
         ]);
     }
 
@@ -91,11 +99,22 @@ final class AuthController
         ServerRequestInterface $request,
         ResponseInterface $response
     ): ResponseInterface {
+        $user = $this->session->user();
+        $userId = is_array($user) ? (int) ($user['id'] ?? $user['id_utilisateur'] ?? 0) : 0;
+        $dashboard = $this->dashboardService->getDashboardData();
+
         return $this->renderer->render($response, 'espace', [
             'title' => 'Tableau de bord technicien',
-            'user' => $this->session->user(),
+            'user' => $user,
             'csrf' => $this->session->csrfToken(),
-            'dashboard' => $this->dashboardService->getDashboardData(),
+            'myReservations' => $userId > 0 ? $this->reservationService->listerParUtilisateur($userId) : [],
+            'dashboard' => $dashboard,
+            'pendingReservations' => $dashboard['pending_reservations'] ?? [],
+            'openIncidents' => $dashboard['open_incidents'] ?? [],
+            'outOfServiceEquipments' => $dashboard['out_of_service_equipments'] ?? [],
+            'kpis' => $dashboard['kpis'] ?? [],
+            'flashError' => $this->session->pullflash('error'),
+            'flashSuccess' => $this->session->pullflash('success'),
         ]);
     }
 

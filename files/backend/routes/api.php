@@ -30,5 +30,11 @@ return static function (
         // Toute personne connectée peut réserver ; les règles métier sont dans le service.
         $group->post('/reservations', [$reservations, 'create'])
             ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
+        $group->post('/reservations/{id:[0-9]+}/annuler', [$reservations, 'cancel'])
+            ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
+
+        // Confirmation d'une demande (R1) : réservée aux techniciens et administrateurs.
+        $group->post('/reservations/{id:[0-9]+}/confirmer', [$reservations, 'confirm'])
+            ->add(new RequireRole($session, ['TECHNICIEN', 'ADMIN'], true));
     })->add(new ApiWriteGuard());
 };

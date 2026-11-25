@@ -122,4 +122,91 @@ final class ReservationRepository
             ['id_reservation' => $id]
         );
     }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findById(int $idReservation): ?array
+    {
+        $row = $this->database->get(
+            'RESERVATION (R)',
+            [
+                '[>]EQUIPEMENT (E)' => ['id_equipement' => 'id_equipement'],
+                '[>]UTILISATEUR (U)' => ['id_utilisateur' => 'id_utilisateur'],
+                '[>]CRENEAU_PRIORITAIRE (C)' => ['id_creneau' => 'id_creneau'],
+            ],
+            [
+                'R.id_reservation',
+                'R.date_debut',
+                'R.date_fin',
+                'R.statut',
+                'R.a_verifier',
+                'R.id_utilisateur',
+                'R.id_equipement',
+                'R.id_creneau',
+                'E.nom (equipement_nom)',
+                'U.nom (utilisateur_nom)',
+                'C.libelle_atelier',
+            ],
+            ['R.id_reservation' => $idReservation]
+        );
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function findByUser(int $idUtilisateur): array
+    {
+        $rows = $this->database->select(
+            'RESERVATION (R)',
+            [
+                '[>]EQUIPEMENT (E)' => ['id_equipement' => 'id_equipement'],
+                '[>]CRENEAU_PRIORITAIRE (C)' => ['id_creneau' => 'id_creneau'],
+            ],
+            [
+                'R.id_reservation',
+                'R.date_debut',
+                'R.date_fin',
+                'R.statut',
+                'R.a_verifier',
+                'R.id_equipement',
+                'R.id_creneau',
+                'E.nom (equipement_nom)',
+                'E.localisation (equipement_localisation)',
+                'C.libelle_atelier',
+            ],
+            [
+                'R.id_utilisateur' => $idUtilisateur,
+                'ORDER' => ['R.date_debut' => 'DESC'],
+            ]
+        );
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    public function hasConfirmedConflict(
+        int $idEquipement,
+        string $dateDebut,
+        string $dateFin,
+        int $excludeReservationId
+    ): bool {
+        return $this->database->has('RESERVATION', [
+            'id_equipement' => $idEquipement,
+            'statut' => 'CONFIRMEE',
+            'id_reservation[!]' => $excludeReservationId,
+            'date_debut[<]' => $dateFin,
+            'date_fin[>]' => $dateDebut,
+        ]);
+    }
+
+    public function updateStatut(int $idReservation, string $nouveauStatut): void
+    {
+        $this->database->update(
+            'RESERVATION',
+            ['statut' => $nouveauStatut],
+            ['id_reservation' => $idReservation]
+        );
+    }
 }

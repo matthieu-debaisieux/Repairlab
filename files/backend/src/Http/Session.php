@@ -76,4 +76,30 @@ final class Session
     {
         return is_string($received) && hash_equals($this->csrfToken(), $received);
     }
+
+    // Exemple dans App\Http\Session
+    public function flash(string $key, string $message): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        $_SESSION['_flash'][$key] = $message;
+    }
+
+    public function pullFlash(string $key): ?string
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['_flash'][$key]) || !is_string($_SESSION['_flash'][$key])) {
+            return null;
+        }
+
+        $value = $_SESSION['_flash'][$key];
+        unset($_SESSION['_flash'][$key]);
+
+        return $value;
+    }
 }
