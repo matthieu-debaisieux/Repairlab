@@ -39,7 +39,7 @@ try {
     echo "[SETUP] Créneau prioritaire #$idCreneauTest créé ($demain 09:00 -> 12:00)\n\n";
 
     // ------------------------------------------------------------------
-    // TEST 1 : Créneau ordinaire par un ADHERENT -> CONFIRMEE
+    // TEST 1 : Créneau ordinaire par un ADHERENT -> DEMANDEE
     // ------------------------------------------------------------------
     $res1 = $service->creer(
         idEquipement: $idEquipement,
@@ -49,20 +49,26 @@ try {
         dateFin: "$demain 07:00:00"
     );
     $idsResaCrees[] = (int) $res1['id'];
-    echo "[TEST 1 - Ordinaire ADHERENT] Statut obtenu : {$res1['status']} (attendu : CONFIRMEE)\n";
+    echo "[TEST 1 - Ordinaire ADHERENT] Statut obtenu : {$res1['status']} (attendu : DEMANDEE)\n";
 
     // ------------------------------------------------------------------
-    // TEST 2 : Créneau prioritaire par un ADHERENT -> DEMANDEE (R1)
+    // TEST 2 : Créneau prioritaire par un ADHERENT -> Refus ATELIER_PRIORITAIRE (403)
     // ------------------------------------------------------------------
-    $res2 = $service->creer(
-        idEquipement: $idEquipement,
-        idUtilisateur: $idAdherent,
-        roleUtilisateur: 'ADHERENT',
-        dateDebut: "$demain 09:00:00",
-        dateFin: "$demain 10:30:00"
-    );
-    $idsResaCrees[] = (int) $res2['id'];
-    echo "[TEST 2 - Prioritaire ADHERENT] Statut obtenu : {$res2['status']} (attendu : DEMANDEE)\n";
+    try {
+        $res2 = $service->creer(
+            idEquipement: $idEquipement,
+            idUtilisateur: $idAdherent,
+            roleUtilisateur: 'ADHERENT',
+            dateDebut: "$demain 09:00:00",
+            dateFin: "$demain 10:30:00"
+        );
+        if (isset($res2['id'])) {
+            $idsResaCrees[] = (int) $res2['id'];
+        }
+        echo "[TEST 2 - Prioritaire ADHERENT] ÉCHEC : la réservation aurait dû être refusée !\n";
+    } catch (ReservationRefusee $e) {
+        echo "[TEST 2 - Prioritaire ADHERENT] OK : refusée avec reason={$e->reason}, HTTP={$e->httpStatus} ({$e->getMessage()})\n";
+    }
 
     // ------------------------------------------------------------------
     // TEST 3 : Créneau prioritaire par un TECHNICIEN -> CONFIRMEE (R1)
