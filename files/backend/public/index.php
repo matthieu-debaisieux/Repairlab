@@ -56,13 +56,14 @@ $authController = new AuthController(
     $reservationService
 );
 
-$reservationController = new ReservationController( $reservationService, $session);
-
+$incidentRepository = new IncidentRepository($database);
 $incidentController = new IncidentController(
-    new IncidentService(new IncidentRepository($database)),
+    new IncidentService($incidentRepository),
     $session,
     $renderer
 );
+
+$reservationController = new    ReservationController( $reservationService, $session, $renderer, $incidentRepository);
 
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
@@ -76,6 +77,6 @@ $app->addErrorMiddleware(
 
 (require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $incidentController, $session);
 
-(require $root . '/routes/auth.php')($app, $authController, $session);
+(require $root . '/routes/auth.php')($app, $authController, $session, $reservationController);
 
 $app->run();

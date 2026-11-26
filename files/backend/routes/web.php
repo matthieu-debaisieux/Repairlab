@@ -25,7 +25,7 @@ return static function (
 
     $app->get('/incidents/{id:[0-9]+}', [$incidents, 'show'])
         ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN']));
-
+    
         // Routes POST
     $app->post('/technicien/reservations/{id:[0-9]+}/confirmer', [$reservations, 'confirm'])
         ->add(new RequireRole($session, ['TECHNICIEN', 'ADMIN']));

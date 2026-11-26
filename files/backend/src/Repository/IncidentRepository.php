@@ -134,4 +134,38 @@ final class IncidentRepository
     {
         $this->database->update('INCIDENT', ['est_bloquant' => $blocking ? 1 : 0], ['id_incident' => $id]);
     }
+
+    /** Liste les incidents : tous pour TECHNICIEN/ADMIN, ou ceux signalés par l'utilisateur. */
+    public function listForUser(int $userId, string $role): array
+    {
+        $joins = [
+            '[>]EQUIPEMENT (E)' => ['id_equipement' => 'id_equipement'],
+            '[>]UTILISATEUR (U)' => ['id_utilisateur' => 'id_utilisateur'],
+        ];
+        $columns = [
+            'I.id_incident (id)',
+            'I.titre (title)',
+            'I.statut (status)',
+            'I.est_bloquant (blocking)',
+            'I.date_signalement (reported_at)',
+            'E.id_equipement (equipment_id)',
+            'E.nom (equipment)',
+            'U.nom (author)',
+        ];
+        $where = in_array($role, ['TECHNICIEN', 'ADMIN'], true)
+            ? ['ORDER' => ['I.id_incident' => 'DESC']]
+            : ['I.id_utilisateur' => $userId, 'ORDER' => ['I.id_incident' => 'DESC']];
+
+        $rows = $this->database->select('INCIDENT (I)', $joins, $columns, $where);
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        foreach ($rows as &$row) {
+            $row['blocking'] = (int) ($row['blocking'] ?? 0) === 1;
+        }
+        unset($row);
+
+        return $rows;
+    }
 }

@@ -9,6 +9,8 @@ use App\Http\HttpInputException;
 use App\Http\JsonInput;
 use App\Http\JsonResponder;
 use App\Http\Session;
+use App\Http\ViewRenderer;
+use App\Repository\IncidentRepository;
 use App\Service\ReservationService;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -27,8 +29,46 @@ final class ReservationController
 
     public function __construct(
         private ReservationService $reservationService,
-        private Session $session
+        private Session $session,
+        private ?viewRenderer $renderer = null,
+        private ?IncidentRepository $incidentRepository = null
     ) {
+    }
+
+    /** GET /mon-espace : page HTML des réservations et liens d'incidents. */
+    public function monEspace(Request $request, Response $response): Response
+    {
+        $user = $this->session->user();
+        if (!is_array($user)) {
+            $this->session->flash('error', 'Connectez-vous pour accéder à votre espace.');
+
+            return $this->redirect($response, '/login');
+        }
+
+        $userId = (int) $user['id'];
+        $reservations = $this->reservationService->listerParUtilisateur($userId);
+
+        $incidents = [];
+        if ($this->incidentRepository !== null && method_exists($this->incidentRepository, 'listForUser')) {
+            $incidents = $this->incidentRepository->listForUser($userId, (string) ($user['role'] ?? 'ADHERENT'));
+        }
+
+        if ($this->renderer === null) {
+            return $this->json($response, [
+                'user' => $user,
+                'reservations' => $reservations,
+                'incidents' => $incidents,
+            ]);
+        }
+
+        return $this->renderer->render($response, 'mon-espace', [
+            'user' => $user,
+            'reservations' => $reservations,
+            'incidents' => $incidents,
+            'csrf' => $this->session->csrfToken(),
+            'flashError' => $this->session->pullFlash('error'),
+            'flashSuccess' => $this->session->pullFlash('success'),
+        ]);
     }
 
     /** POST /reservations (formulaire) ou POST /api/reservations : equipmentId, debut, fin. */
