@@ -138,25 +138,24 @@ final class IncidentRepository
     /** Liste les incidents : tous pour TECHNICIEN/ADMIN, ou ceux signalés par l'utilisateur. */
     public function listForUser(int $userId, string $role): array
     {
-        $joins = [
-            '[>]EQUIPEMENT (E)' => ['id_equipement' => 'id_equipement'],
-            '[>]UTILISATEUR (U)' => ['id_utilisateur' => 'id_utilisateur'],
-        ];
         $columns = [
-            'I.id_incident (id)',
-            'I.titre (title)',
-            'I.statut (status)',
-            'I.est_bloquant (blocking)',
-            'I.date_signalement (reported_at)',
-            'E.id_equipement (equipment_id)',
-            'E.nom (equipment)',
-            'U.nom (author)',
+            'id_incident (id)',
+            'titre (title)',
+            'statut (status)',
+            'est_bloquant (blocking)',
+            'date_signalement (reported_at)',
+            'id_equipement (equipment_id)',
+            'equipement_nom (equipment)',
+            'auteur_nom (author)',
+            'nb_evenements_historique',
+            'nb_interventions',
+            'interventions_en_cours',
         ];
         $where = in_array($role, ['TECHNICIEN', 'ADMIN'], true)
-            ? ['ORDER' => ['I.id_incident' => 'DESC']]
-            : ['I.id_utilisateur' => $userId, 'ORDER' => ['I.id_incident' => 'DESC']];
+            ? ['ORDER' => ['id_incident' => 'DESC']]
+            : ['auteur_id' => $userId, 'ORDER' => ['id_incident' => 'DESC']];
 
-        $rows = $this->database->select('INCIDENT (I)', $joins, $columns, $where);
+        $rows = $this->database->select('v_incidents_suivi', $columns, $where);
         if (!is_array($rows)) {
             return [];
         }

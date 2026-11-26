@@ -19,42 +19,44 @@ final class EquipmentRepository
     public function all(array $filters = []): array
     {
         $where = [
-            'E.visible_public' => 1,
-            'ORDER' => ['E.id_equipement' => 'DESC'],
+            'visible_public' => 1,
+            'ORDER' => ['id_equipement' => 'DESC'],
         ];
 
         $q = $filters['q'] ?? '';
         if (is_string($q) && $q !== '') {
             $where['OR'] = [
-                'E.nom[~]' => $q,
-                'E.localisation[~]' => $q,
+                'nom[~]' => $q,
+                'localisation[~]' => $q,
             ];
         }
 
         $category = $filters['category'] ?? '';
         if (is_string($category) && $category !== '') {
             if (ctype_digit($category)) {
-                $where['E.id_categorie'] = (int) $category;
+                $where['id_categorie'] = (int) $category;
             } else {
-                $where['C.libelle'] = $category;
+                $where['categorie_libelle'] = $category;
             }
         }
 
         $status = $filters['status'] ?? '';
         if (is_string($status) && $status !== '') {
-            $where['E.statut_technique'] = $status;
+            $where['statut_technique'] = $status;
         }
 
         $rows = $this->database->select(
-            'EQUIPEMENT (E)',
-            ['[>]CATEGORIE_EQUIPEMENT (C)' => ['id_categorie' => 'id_categorie']],
+            'v_equipements_catalogue',
             [
-                'E.id_equipement (id)',
-                'E.nom (name)',
-                'E.statut_technique (status)',
-                'E.localisation',
-                'E.controle_requis',
-                'C.libelle (category)',
+                'id_equipement (id)',
+                'nom (name)',
+                'statut_technique (status)',
+                'localisation',
+                'controle_requis',
+                'categorie_libelle (category)',
+                'incidents_actifs',
+                'a_panne_bloquante',
+                'reservations_a_venir',
             ],
             $where
         );
