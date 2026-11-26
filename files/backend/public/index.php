@@ -18,6 +18,9 @@ use App\Service\ReservationService;
 use App\Service\TechnicienDashboardService;
 use Dotenv\Dotenv;
 use Slim\Factory\AppFactory;
+use App\Controller\IncidentController;
+use App\Repository\IncidentRepository;
+use App\Service\IncidentService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -55,6 +58,12 @@ $authController = new AuthController(
 
 $reservationController = new ReservationController( $reservationService, $session);
 
+$incidentController = new IncidentController(
+    new IncidentService(new IncidentRepository($database)),
+    $session,
+    $renderer
+);
+
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 $app->addErrorMiddleware(
@@ -63,9 +72,9 @@ $app->addErrorMiddleware(
     true
 );
 
-(require $root . '/routes/web.php')($app, $equipmentController, $reservationController, $session);
+(require $root . '/routes/web.php')($app, $equipmentController, $reservationController, $incidentController, $session);
 
-(require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $session);
+(require $root . '/routes/api.php')($app, $equipmentController, $reservationController, $incidentController, $session);
 
 (require $root . '/routes/auth.php')($app, $authController, $session);
 

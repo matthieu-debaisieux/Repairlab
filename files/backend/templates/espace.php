@@ -136,7 +136,7 @@ $isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
         <p>Aucun incident actif.</p>
     <?php else: ?>
         <table>
-            <thead><tr><th>N°</th><th>Titre</th><th>Machine</th><th>État</th><th>Bloquant</th></tr></thead>
+            <thead><tr><th>N°</th><th>Titre</th><th>Machine</th><th>État</th><th>Bloquant</th><th>lien</th></tr></thead>
             <tbody>
             <?php foreach ($dashboard['open_incidents'] as $i): ?>
                 <tr>
@@ -145,6 +145,9 @@ $isStaff = in_array($user['role'], ['TECHNICIEN', 'ADMIN'], true);
                     <td><?= $e($i['equipement_nom']) ?></td>
                     <td><?= $e($i['statut']) ?></td>
                     <td><?= (int) $i['est_bloquant'] === 1 ? 'Oui' : 'Non' ?></td>
+                    <td>
+                        <a href="/incidents/<?= (int) ($inc['id'] ?? $inc['id_incident'] ?? 0) ?>">Voir l'incident</a>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

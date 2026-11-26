@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Controller\EquipmentController;
 use App\Controller\ReservationController;
+use App\Controller\IncidentController;
 use App\Http\JsonResponder;
 use App\Http\Session;
 use App\Middleware\ApiWriteGuard;
@@ -17,9 +18,10 @@ return static function (
     App $app,
     EquipmentController $equipment,
     ReservationController $reservations,
+    IncidentController $incidents,
     Session $session
 ): void {
-    $app->group('/api', function (RouteCollectorProxy $group) use ($equipment, $reservations, $session): void {
+    $app->group('/api', function (RouteCollectorProxy $group) use ($equipment, $reservations, $incidents, $session): void {
         $group->get('/health', function (Request $request, Response $response): Response {
             return JsonResponder::respond($response, ['status' => 'ok']);
         });
@@ -31,6 +33,10 @@ return static function (
         $group->get('/reservations', [$reservations, 'mesCreneaux'])
             ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
 
+        // Détails d'une réservation (si l'utilisateur est l'auteur ou un technicien).
+        $group->get('/incidents/{id:[0-9]+}', [$incidents, 'show'])
+            ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
+
         // Toute personne connectée peut réserver ; les règles métier sont dans le service.
         $group->post('/reservations', [$reservations, 'create'])
             ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
@@ -40,5 +46,18 @@ return static function (
         // Confirmation d'une demande (R1) : réservée aux techniciens et administrateurs.
         $group->post('/reservations/{id:[0-9]+}/confirmer', [$reservations, 'confirm'])
             ->add(new RequireRole($session, ['TECHNICIEN', 'ADMIN'], true));
+
+        // Toute personne connectée peut signaler un incident ; les règles métier sont dans le service.
+        $group->post('/incidents', [$incidents, 'create'])
+            ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
+        
+        // Seul un technicien ou un administrateur peut faire avancer un incident (R6).
+        $group->post('/incidents/{id:[0-9]+}/transition', [$incidents, 'transition'])
+            ->add(new RequireRole($session, ['TECHNICIEN', 'ADMIN'], true));
+
+        // Seul un technicien ou un administrateur peut marquer un incident comme bloquant (R3).
+        $group->post('/incidents/{id:[0-9]+}/bloquant', [$incidents, 'toggleBlocking'])
+            ->add(new RequireRole($session, ['TECHNICIEN', 'ADMIN'], true));
+        
     })->add(new ApiWriteGuard());
 };

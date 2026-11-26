@@ -19,6 +19,6 @@
   "scripts": {
     "serve": "php -S 127.0.0.1:8080 -t public public/router.php",
     "test": "php tests/http-input.php",
-    "test:db": "php tests/test_catalogue_filtres.php && php tests/test_reservation.php && php tests/test_recette_mardi.php"
+    "test:db": "php tests/test_catalogue_filtres.php && php tests/test_reservation.php && php tests/test_recette_mardi.php && php tests/test_r6_incidents.php"
   }
 }

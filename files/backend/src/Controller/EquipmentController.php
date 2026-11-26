@@ -19,7 +19,7 @@ final class EquipmentController
         private EquipmentService $service,
         private ViewRenderer $renderer,
         private Session $session,
-        private ReservationService $reservationService
+        private ReservationService $reservations
     ) {
     }
 
@@ -58,7 +58,7 @@ final class EquipmentController
         ], $statusCode);
     }
 
-        /** GET /equipements/{id} : fiche de la machine, créneaux déjà pris et formulaire de réservation. */
+    /** GET /equipements/{id} : fiche de la machine, créneaux déjà pris et formulaire de réservation. */
     public function show(
         ServerRequestInterface $request,
         ResponseInterface $response,
@@ -84,7 +84,6 @@ final class EquipmentController
             'flashSuccess' => $this->session->pullFlash('success'),
         ]);
     }
-
 
     public function apiIndex(
         ServerRequestInterface $request,
