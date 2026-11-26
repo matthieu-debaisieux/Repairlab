@@ -27,6 +27,10 @@ return static function (
         $group->get('/equipment', [$equipment, 'apiIndex']);
         $group->get('/equipment/{id:[0-9]+}', [$equipment, 'apiShow']);
 
+        // Réservations de l'utilisateur connecté.
+        $group->get('/reservations', [$reservations, 'mesCreneaux'])
+            ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));
+
         // Toute personne connectée peut réserver ; les règles métier sont dans le service.
         $group->post('/reservations', [$reservations, 'create'])
             ->add(new RequireRole($session, ['ADHERENT', 'TECHNICIEN', 'ADMIN'], true));

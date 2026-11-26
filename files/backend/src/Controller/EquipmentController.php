@@ -8,6 +8,7 @@ use App\Http\JsonResponder;
 use App\Http\Session;
 use App\Http\ViewRenderer;
 use App\Service\EquipmentService;
+use App\Service\ReservationService;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,7 +18,8 @@ final class EquipmentController
     public function __construct(
         private EquipmentService $service,
         private ViewRenderer $renderer,
-        private Session $session
+        private Session $session,
+        private ReservationService $reservationService
     ) {
     }
 
@@ -55,6 +57,34 @@ final class EquipmentController
             'flashSuccess' => $flashSuccess,
         ], $statusCode);
     }
+
+        /** GET /equipements/{id} : fiche de la machine, créneaux déjà pris et formulaire de réservation. */
+    public function show(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $equipment = $this->service->get((int) ($args['id'] ?? 0));
+
+        if ($equipment === null) {
+            $response->getBody()->write(
+                '<!doctype html><html lang="fr"><meta charset="utf-8"><title>Équipement introuvable</title>'
+                . '<h1>Équipement introuvable</h1><p><a href="/equipements">Retour au catalogue</a></p>'
+            );
+
+            return $response->withHeader('Content-Type', 'text/html; charset=utf-8')->withStatus(404);
+        }
+
+        return $this->renderer->render($response, 'equipement', [
+            'equipment' => $equipment,
+            'slots' => $this->reservations->creneauxPris((int) $equipment['id']),
+            'user' => $this->session->user(),
+            'csrf' => $this->session->csrfToken(),
+            'flashError' => $this->session->pullFlash('error'),
+            'flashSuccess' => $this->session->pullFlash('success'),
+        ]);
+    }
+
 
     public function apiIndex(
         ServerRequestInterface $request,

@@ -33,10 +33,16 @@ $database = DatabaseFactory::create($settings['database']);
 $session = new Session();
 $renderer = new ViewRenderer($root . '/templates');
 
+$reservationService = new ReservationService(
+    new ReservationRepository($database),
+    new CreneauPrioritaireRepository($database)
+);
+
 $equipmentController = new EquipmentController(
     new EquipmentService(new EquipmentRepository($database)),
     $renderer,
-    $session
+    $session,
+    $reservationService
 );
 
 $authController = new AuthController(
@@ -44,19 +50,10 @@ $authController = new AuthController(
     $session,
     $renderer,
     new TechnicienDashboardService($database),
-    new ReservationService(
-        new ReservationRepository($database),
-        new CreneauPrioritaireRepository($database)
-    )
+    $reservationService
 );
 
-$reservationController = new ReservationController(
-    new ReservationService(
-        new ReservationRepository($database),
-        new CreneauPrioritaireRepository($database)
-    ),
-    $session
-);
+$reservationController = new ReservationController( $reservationService, $session);
 
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();

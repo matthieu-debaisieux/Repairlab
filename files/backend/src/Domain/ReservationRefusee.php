@@ -13,14 +13,22 @@ use RuntimeException;
  */
 final class ReservationRefusee extends RuntimeException
 {
+    /** Motifs stables : code => [statut HTTP, message affiché à l'utilisateur]. */
     private const REFUS = [
-        'DATES_INVALIDES'     => [422, 'La fin doit être postérieure au début.'],
-        'DATE_PASSEE'         => [422, 'Impossible de réserver dans le passé.'],
-        'EQUIPEMENT_INCONNU'  => [404, 'Cet équipement n\'existe pas.'],
-        'PANNE_BLOQUANTE'     => [409, 'Réservation impossible : cette machine est actuellement en panne bloquante.'],
-        'ATELIER_PRIORITAIRE' => [403, 'Réservation impossible : ce créneau est réservé à un atelier encadré.'],
-        'CRENEAU_OCCUPE'      => [409, 'Réservation impossible : un créneau occupe déjà cette plage horaire.'],
-        'CONFLIT_CRENEAU'     => [409, 'Ce créneau est déjà pris pour cet équipement.'],
+        // Validation de la demande
+        'DATES_INVALIDES' => [422, 'La date de fin doit être postérieure à la date de début.'],
+        'DATE_PASSEE' => [422, 'Impossible de réserver dans le passé.'],
+        'EQUIPEMENT_INCONNU' => [404, 'Cet équipement n\'existe pas.'],
+        'REFERENCE_INVALIDE' => [422, 'Utilisateur ou équipement invalide.'],
+        // EV-MAT-01 : les trois motifs de refus d'une réservation
+        'ATELIER_PRIORITAIRE' => [403, 'Ce créneau est réservé à un atelier encadré. Choisissez un autre horaire ou contactez l\'accueil.'],
+        'PANNE_BLOQUANTE' => [409, 'Cette machine est en panne et indisponible pour le moment.'],
+        'CRENEAU_OCCUPE' => [409, 'Ce créneau est déjà réservé pour cette machine.'],
+        // Gestion d'une réservation existante
+        'RESERVATION_INTROUVABLE' => [404, 'Réservation introuvable.'],
+        'ACCES_REFUSE' => [403, 'Vous n\'avez pas le droit d\'effectuer cette action.'],
+        'TRANSITION_INVALIDE' => [422, 'Cette réservation ne peut plus être modifiée.'],
+        'STATUT_INVALIDE' => [422, 'Cette réservation n\'est pas dans un état qui permet cette action.'],
     ];
 
     private function __construct(
@@ -31,15 +39,12 @@ final class ReservationRefusee extends RuntimeException
         parent::__construct($message);
     }
 
+    /** Crée un refus à partir d'un code ; statut et message peuvent être précisés pour un cas particulier. */
     public static function motif(string $reason, ?int $httpStatus = null, ?string $message = null): self
     {
         [$defaultStatus, $defaultMessage] = self::REFUS[$reason] ?? [409, 'Réservation impossible.'];
 
-        return new self(
-            $reason,
-            $httpStatus ?? $defaultStatus,
-            $message ?? $defaultMessage
-        );
+        return new self($reason, $httpStatus ?? $defaultStatus, $message ?? $defaultMessage);
     }
     
     /** Retourne null si l'erreur n'est pas un refus métier connu (elle doit alors remonter telle quelle). */
@@ -49,13 +54,11 @@ final class ReservationRefusee extends RuntimeException
         $text = (string) ($e->errorInfo[2] ?? '');
 
         if ($state === '45000' && isset(self::REFUS[$text])) {
-            [$status, $message] = self::REFUS[$text];
-
-            return new self($text, $status, $message);
+            return self::motif($text);
         }
 
         if ($state === '23000') {
-            return new self('REFERENCE_INVALIDE', 422, 'Utilisateur ou équipement invalide.');
+            return self::motif('REFERENCE_INVALIDE');
         }
 
         return null;

@@ -80,18 +80,14 @@ final class Session
     // Exemple dans App\Http\Session
     public function flash(string $key, string $message): void
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
+        $this->start();
 
         $_SESSION['_flash'][$key] = $message;
     }
 
     public function pullFlash(string $key): ?string
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
+        $this->start();
 
         if (!isset($_SESSION['_flash'][$key]) || !is_string($_SESSION['_flash'][$key])) {
             return null;
