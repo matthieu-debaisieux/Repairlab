@@ -1,120 +1,133 @@
-# RepairLab — La Fabrique Commune
+# RepairLab
 
-Application web de gestion d'un FabLab associatif : équipements, réservations de créneaux, incidents et interventions.
-Projet réalisé pendant la semaine intensive BTS SIO SLAM, du 23 au 27 novembre 2026.
-
-> Promesse : une machine en panne ou déjà réservée ne peut pas être utilisée par erreur.
+Application web de gestion d'atelier partagé (fablab) : catalogue d'équipements, réservations avec gestion des créneaux prioritaires, suivi des incidents et interventions, et tableau de bord technicien.
 
 ## Règles métier retenues
 
 | Règle | Type | Principe |
-|---|---|---|
-| R1 — Réservation prioritaire | Contractuelle | Certains créneaux sont réservés aux ateliers encadrés : un adhérent obtient une demande (`DEMANDEE`), un technicien confirme. |
-| R3 — Panne bloquante | Contractuelle | Un incident bloquant interdit les nouvelles réservations. |
-| R6 — Procédure d'un incident | Contractuelle | `OUVERT → EN_COURS → RESOLU → CLOTURE`, retour arrière tracé. |
-| R8 — Trois pannes en trente jours | Extension | Indicateur `CONTROLE_REQUIS`. |
-| R9 — Disponibilité expliquée | Extension | Statut précis avec la raison. |
-| R10 — Validation qualité | Extension | Dossier complet exigé avant la remise en service. |
-
-Le détail est dans [`documentation/cahier-des-charges.md`](documentation/cahier-des-charges.md).
+| --- | --- | --- |
+| R1 — Réservation prioritaire | Contractuelle | Certains créneaux sont réservés aux ateliers encadrés : un adhérent obtient une demande (`DEMANDEE`), un technicien confirme. Évolution `EV-MAT-01` (`ATELIER_PRIORITAIRE`). |
+| R3 — Panne bloquante | Contractuelle | Un incident bloquant interdit les nouvelles réservations (`409 PANNE_BLOQUANTE`) et signale les réservations futures existantes (`a_verifier`). |
+| R6 — Procédure d'un incident | Contractuelle | Cycle de vie strict `OUVERT → EN_COURS → RESOLU → CLOTURE`, retour arrière tracé avec motif obligatoire. |
+| R8 — Trois pannes en trente jours | Extension | Indicateur `CONTROLE_REQUIS` calculé automatiquement. |
+| R9 — Disponibilité expliquée | Extension | Statut précis avec la raison de disponibilité/indisponibilité. |
+| R10 — Validation qualité | Extension | Dossier d'intervention complet exigé avant la remise en service d'un équipement. |
 
 ## Technologies
 
-- PHP 8.2+, Slim 4, Medoo (au-dessus de PDO), Composer
-- MySQL 5.7+ ou MariaDB 10.2+ (les contraintes `CHECK` ne sont appliquées qu'à partir de MySQL 8.0.16 et MariaDB 10.2.1 ; avec une version plus ancienne, les contrôles sont faits dans les services PHP)
-- Architecture : Route → Contrôleur → Service → Repository → SQL
-- Front React / Tailwind CSS / DaisyUI : prévu, à valider avec l'enseignant
+* **Backend :** PHP 8.5 (compatible PHP 8.2+), Slim 4, Medoo
+* **Base de données :** MySQL 8 (compatible MySQL 5.7.24+, moteur `InnoDB`, encodage `utf8mb4`)
+* **Frontend :** Templates PHP / HTML / CSS avec protection CSRF et échappement XSS
+* **Tests & Qualité :** Composer (`composer test:db`)
 
 ## Structure du dépôt
 
-```text
-documentation/        cahier des charges, MCD (Looping), maquettes, documents techniques
-  technique/          architecture MVC, contrat API, cas d'usage
-files/backend/        application PHP
-  database/           01_schema.sql, 02_seed.sql, 03_procedures.sql (à exécuter dans cet ordre)
-  src/                contrôleurs, services, repositories, middlewares
-  routes/ templates/  routes Slim et vues HTML
-  tests/              tests PHP
+* `database/` — Scripts SQL à exécuter impérativement dans l'ordre numérique :
+  * `01_schema.sql` : création des tables, clés étrangères et contraintes d'intégrité
+  * `02_seed.sql` : jeu de données initial et comptes de démonstration
+  * `03_procedures.sql` : procédures stockées (création de réservation, contrôle de chevauchement)
+  * `04_triggers.sql` : déclencheurs SQL (traçabilité automatique dans `HISTORIQUE_INCIDENT`)
+  * `05_views.sql` : vues SQL exploitées par les repositories (`v_equipements_catalogue`, `v_incidents_suivi`)
+* `src/` — Code applicatif PHP (`Domain`, `Repository`, `Service`, `Middleware`, `Controller`)
+* `routes/` — Définition des routes web et API JSON
+* `templates/` — Gabarits PHP (`home.php`, `mon-espace.php`, `technicien.php`, fiches équipements et incidents)
+* `tests/` — Scripts de vérification automatisés et tests de recette
+* `documentation/` — Cahier des charges, MCD/MLD, contrat API et notes d'évolution (`evolution-EV-MAT-01.md`)
+
+## Installation et reconstruction de la base
+
+Prérequis : PHP 8.2+ avec l'extension `pdo_mysql`, Composer et un serveur MySQL (5.7.24+ ou 8.0+).
+
+1. **Reconstruire la base de données neuve** en exécutant les 5 scripts SQL dans l'ordre strict :
+
+```bash
+mysql -u <utilisateur> -p <nom_base> < database/01_schema.sql
+mysql -u <utilisateur> -p <nom_base> < database/02_seed.sql
+mysql -u <utilisateur> -p <nom_base> < database/03_procedures.sql
+mysql -u <utilisateur> -p <nom_base> < database/04_triggers.sql
+mysql -u <utilisateur> -p <nom_base> < database/05_views.sql
 ```
 
-## Installation
+*(Note : les scripts sont rejouables sur une base existante ; `01_schema.sql` réinitialise les tables et `05_views.sql` utilise `CREATE OR REPLACE VIEW`.)*
 
-Prérequis : PHP 8.2+ avec `pdo_mysql`, Composer, un serveur MySQL ou MariaDB.
+2. **Installer les dépendances PHP** :
 
-1. Installer les dépendances et préparer la configuration :
-   ```bash
-   cd files/backend
-   composer install
-   cp .env.example .env     # puis renseigner DB_USER et DB_PASSWORD (le fichier .env n'est jamais commité)
-   ```
-2. Créer la base (nom par défaut : `bts_web`, jeu de caractères `utf8mb4`) puis exécuter les scripts **dans l'ordre**, avec phpMyAdmin (onglet Importer) ou en ligne de commande :
-   ```bash
-   mysql -u <utilisateur> -p bts_web < database/01_schema.sql
-   mysql -u <utilisateur> -p bts_web < database/02_seed.sql
-   mysql -u <utilisateur> -p bts_web < database/03_procedures.sql
-   ```
-   Les scripts se rejouent sur une base existante : `01_schema.sql` supprime puis recrée les tables.
-3. Lancer le serveur de développement :
-   ```bash
-   composer serve
-   ```
-   Puis ouvrir <http://127.0.0.1:8080/>.
+```bash
+composer install
+```
+
+3. **Vérifier l'installation et lancer la suite de tests** :
+
+```bash
+composer test:db
+```
 
 ## Comptes de démonstration
 
-Mot de passe de tous les comptes : `repairlab2026`. Ces comptes et ce mot de passe sont publics : à supprimer ou changer avant tout déploiement réel.
-
 | E-mail | Rôle |
-|---|---|
-| alice.martin@fabrique.example | Administrateur |
-| karim.benali@fabrique.example | Technicien |
-| camille.durand@fabrique.example | Adhérent |
-| lucas.moreau@fabrique.example | Adhérent |
-| ines.petit@fabrique.example | Adhérent |
-| hugo.roux@fabrique.example | Adhérent |
+| --- | --- |
+| `alice.martin@fabrique.example` | Administrateur |
+| `karim.benali@fabrique.example` | Technicien |
+| `camille.durand@fabrique.example` | Adhérent |
+| `lucas.moreau@fabrique.example` | Adhérent |
+| `ines.petit@fabrique.example` | Adhérent |
+| `hugo.roux@fabrique.example` | Adhérent |
 
 ## Pages et API
 
-| Route | Accès |
-|---|---|
-| `GET /` | Catalogue public avec recherche et filtres |
-| `GET /login`, `POST /login`, `POST /logout` | Connexion et déconnexion |
-| `GET /mon-espace` | Toute personne connectée |
-| `GET /technicien` | Technicien et administrateur |
-| `GET /api/equipment`, `GET /api/equipment/{id}` | Public |
-| `POST /api/reservations` | Connecté, `Content-Type: application/json` |
+### Pages Web
+| Route | Accès | Description |
+| --- | --- | --- |
+| `GET /` | Public | Catalogue public des équipements avec recherche et filtres |
+| `GET /equipements/{id}` | Public | Fiche détaillée d'un équipement et signalement d'incident |
+| `GET /login`, `POST /login`, `POST /logout` | Public / Connecté | Authentification et déconnexion |
+| `GET /mon-espace` | Connecté | Espace personnel (réservations, incidents signalés, filtres) |
+| `GET /technicien` | Technicien / Admin | Tableau de bord technicien (demandes à confirmer, incidents, suivi) |
+| `GET /incidents/{id}` | Connecté (auteur ou Tech/Admin) | Détail d'un incident, historique des états et interventions |
 
-Le contrat complet est dans [`documentation/technique/contrat-api.md`](documentation/technique/contrat-api.md).
+### Endpoints API JSON & Actions métier
+| Méthode & Route | Accès | Description |
+| --- | --- | --- |
+| `GET /api/equipment`, `GET /api/equipment/{id}` | Public | Consultation du catalogue et des fiches au format JSON |
+| `POST /api/reservations` | Connecté | Création d'une réservation (contrôle R1, R3 et chevauchements) |
+| `POST /reservations/{id}/annuler` | Connecté (propriétaire ou Tech/Admin) | Annulation d'une réservation |
+| `POST /reservations/{id}/confirmer` | Technicien / Admin | Confirmation d'une demande en attente (`DEMANDEE → CONFIRMEE`) |
+| `POST /incidents` | Connecté | Signalement d'un nouvel incident |
+| `POST /incidents/{id}/transition` | Technicien / Admin | Changement d'état (avancement ou réouverture avec motif) |
+| `POST /incidents/{id}/bloquant` | Technicien / Admin | Qualification ou levée du caractère bloquant (R3) |
 
-## Tests
+## Tests automatisés
 
-```bash
-cd files/backend
-composer test       # contrat JSON, sans base de données
-composer test:db    # catalogue et réservations ; utilise la base du .env, y crée puis supprime ses propres lignes
-```
+La commande `composer test:db` exécute la batterie de tests d'intégration sur la base de données (avec nettoyage automatique restaurant l'état initial du jeu d'essai) :
+* **Catalogue** (`test_catalogue_filtres.php`) : recherche par mot-clé, localisation, catégorie, statut et visibilité publique.
+* **Réservations & R1** (`test_reservation.php`) : créneaux ordinaires/prioritaires (`ATELIER_PRIORITAIRE`), chevauchements (`409`), dates invalides (`422`).
+* **Recette globale** (`test_recette_mardi.php`) : parcours complet adhérent et technicien.
+* **Cycle de vie incidents & R6** (`test_r6_incidents.php`) : machine à états `INC-MAT-01`, triggers d'historique, motif obligatoire à la réouverture, blocage R3.
+* **Confirmation technicien** (`test_confirmation_demande.php`) : contrôle des rôles, conflits de créneaux et statuts invalides.
+* **Évolution EV-MAT-01** (`test_ev_mat_01.php`) : validation des règles et statuts HTTP de l'évolution.
 
 ## Sécurité
 
-- Mots de passe hachés (`password_hash`), session régénérée à la connexion, cookie `HttpOnly` et `SameSite=Lax`.
-- Jeton CSRF sur les formulaires ; sur l'API, les écritures exigent du JSON et une origine identique.
-- Droits vérifiés côté serveur par un middleware ; requêtes SQL paramétrées ; sorties HTML échappées.
-- `APP_DEBUG=false` pour toute démonstration ou production.
+* **Protection SQL :** Requêtes préparées via Medoo et PDO (nettoyage systématique des variables de session SQL `@app_user_id` et `@motif_changement` après transaction).
+* **Protection XSS :** Échappement systématique des données affichées dans les gabarits HTML.
+* **Protection CSRF :** Validation des jetons CSRF sur les formulaires et actions d'écriture (non contournable via l'en-tête `Accept: application/json`).
+* **Contrôle d'accès (RBAC) :** Vérification stricte des rôles (`ADHERENT`, `TECHNICIEN`, `ADMIN`) et de la propriété des ressources.
 
-## Avancement
+## Avancement du projet
 
-| Étape | État |
-|---|---|
-| Cahier des charges, MCD, schéma SQL, maquettes | Fait |
-| Authentification et rôles | Fait |
-| Catalogue, recherche et filtres | Fait |
-| Réservation avec contrôle du chevauchement (procédure stockée) | Fait |
-| R1 : réservation prioritaire (demande, puis confirmation par un technicien) | Demande faite, confirmation à faire |
-| Annulation, « mes créneaux », incidents, interventions | À faire |
-| R3, R6, vues SQL, trigger | À faire |
-| Extensions R8, R9, R10 | À faire |
-| Recette, documentation de déploiement | À faire |
+| Module / Fonctionnalité | État |
+| --- | --- |
+| Conception (Cahier des charges, MCD/MLD, dictionnaire de données, maquettes) | Terminé |
+| Base de données (Schéma, jeu d'essai, procédures, triggers, vues SQL `01` à `05`) | Terminé |
+| Authentification, gestion des rôles et sécurité (CSRF, XSS, RBAC) | Terminé |
+| Catalogue public, recherche, filtres et API JSON | Terminé |
+| Réservations, créneaux prioritaires (R1), annulation et confirmation technicien | Terminé |
+| Évolution `EV-MAT-01` (code et tests automatisés) | Terminé (documentation à finaliser) |
+| Cycle de vie des incidents (`R6` / `INC-MAT-01`) et blocage des réservations (`R3`) | Terminé |
+| Formulaire HTML de signalement d'incident & marquage `a_verifier` (R3) | En cours |
+| Gestion des interventions techniques (`INTERVENTION` / `PARTICIPER`) | En cours |
+| Extensions (`R8`, `R9`, `R10`) et finalisation recette / démonstration | À faire |
 
 ## Auteur
 
-Debaisieux Matthieu — BTS SIO SLAM.
+Projet BTS RepairLab - Debaisieux Matthieu
